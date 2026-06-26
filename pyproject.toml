@@ -25,6 +25,7 @@ ssh = ["paramiko>=3.4"]
 [project.scripts]
 ha-mcp = "ha_mcp.__main__:main"
 ha-mcp-setup = "ha_mcp.setup:main"
+ha-mcp-doctor = "ha_mcp.doctor:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ha_mcp"]

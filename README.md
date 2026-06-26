@@ -73,6 +73,35 @@ Klaar! 🎉
 - "Maak een back-up en update de Mosquitto add-on."
 - "Maak een nieuw dashboard met een kaart per kamer."
 
+### Kant-en-klare opdrachten (slash-commando's)
+
+De koppeling levert een paar veilige, uitgewerkte workflows die je in Claude
+Code als commando kunt typen — handig als je niet wilt nadenken over de juiste
+stappen:
+
+| Commando | Wat het doet |
+|----------|--------------|
+| `/mcp__home-assistant__overview` | Een helder overzicht van je hele installatie |
+| `/mcp__home-assistant__diagnose` | Eén entiteit doormeten en problemen verklaren |
+| `/mcp__home-assistant__new_automation` | Een automation maken vanuit een beschrijving |
+| `/mcp__home-assistant__edit_config` | Veilig YAML aanpassen (met validatie + rollback) |
+| `/mcp__home-assistant__safe_update` | Updates checken en installeren mét back-up |
+
+> Claude krijgt bij het verbinden automatisch instructies mee over de juiste,
+> efficiënte manier van werken (filteren i.p.v. alles ophalen, eerst
+> `check_config`, snapshots/back-ups, control vs. config). Je hoeft dus niet
+> precies te weten welke tool wanneer nodig is — vraag gewoon wat je wilt.
+
+### Controleren of alles werkt
+
+Twijfel je of de koppeling goed staat? Draai het controle-commando — het test
+de verbinding, de WebSocket, bestandstoegang, de integratie en je
+bestandsrechten, en geeft per onderdeel een ✅/⚠️/❌ met tips:
+
+```bash
+.venv/bin/ha-mcp-doctor     # of: ha-mcp-doctor  (in de geactiveerde venv)
+```
+
 ---
 
 ## 🧰 Wat de MCP-server allemaal kan (100 tools)
@@ -194,8 +223,9 @@ src/ha_mcp/            # de MCP-server (Python)
   files.py             #   local & ssh bestands-backends (met padbeveiliging)
   snapshots.py         #   lokale snapshots voor omkeerbare bestandswijzigingen
   setup.py             #   de interactieve wizard (ha-mcp-setup)
+  doctor.py            #   de gezondheidscheck (ha-mcp-doctor)
   dashboard_template.py#   het automatische dashboard
-  tools/               #   alle 100 tools, per thema
+  tools/               #   alle 100 tools + workflow-prompts, per thema
 custom_components/claude_link/   # de HACS-integratie (status + dashboard in HA)
 install.sh / install.ps1         # één-commando installers
 hacs.json                        # HACS-metadata

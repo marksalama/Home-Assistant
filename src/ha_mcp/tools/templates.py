@@ -14,7 +14,7 @@ async def render_template(template: str) -> str:
     Example: "{{ states('sensor.temperature') }}" or
     "{{ states.light | selectattr('state','eq','on') | list | count }}".
     """
-    return _dump(await client.rest_post("/template", {"template": template}))
+    return _dump(await client.rest_post("/template", {"template": template}, write=False))
 
 
 @mcp.tool()

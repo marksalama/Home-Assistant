@@ -8,7 +8,7 @@ Dit project bestaat uit **drie onderdelen**:
 
 | Onderdeel | Wat het doet | Waar het draait |
 |-----------|--------------|-----------------|
-| 🧠 **MCP-server** | 78 tools waarmee Claude je HA bestuurt en configureert (REST + WebSocket API + ruwe YAML-bestanden) | Op je computer, naast Claude Code |
+| 🧠 **MCP-server** | 100 tools waarmee Claude je HA bestuurt, configureert, beheert en debugt (REST + WebSocket API + ruwe YAML-bestanden) | Op je computer, naast Claude Code |
 | 🏠 **Claude Link** (integratie) | Visuele status-tegels + automatisch dashboard in Home Assistant, installeerbaar via **HACS** | In Home Assistant |
 | ✨ **Setup-wizard** | Zet alles automatisch op: verbinding testen, koppelen aan Claude Code, dashboard aanmaken | Eén commando |
 
@@ -75,7 +75,7 @@ Klaar! 🎉
 
 ---
 
-## 🧰 Wat de MCP-server allemaal kan (78 tools)
+## 🧰 Wat de MCP-server allemaal kan (100 tools)
 
 | Categorie | Tools |
 |-----------|-------|
@@ -89,11 +89,34 @@ Klaar! 🎉
 | **Devices & entities** | `list/update_device`, `list_entity_registry`, `update_entity` |
 | **Labels, personen, zones** | `list/create/delete_label`, `list_persons`, `list/create_zone` |
 | **Integraties** | `list/reload/delete_config_entry` |
-| **Add-ons & back-ups** (HA OS) | `list_addons`, `get_addon_info`, `control_addon`, `get_addon_logs`, `list/create_backup`, `supervisor_info`, `host_info` |
-| **Systeem** | `get_config`, `check_config`, `restart_home_assistant`, `reload_domain`, `system_health` |
-| **Meldingen & updates** | `list/create/dismiss_notification`, `notify`, `list_updates`, `install_update` |
-| **Templates & data** | `render_template`, `get_history`, `get_logbook`, `get_error_log`, `get_statistics` |
-| **YAML-bestanden** | `list/read/write/delete_config_file` |
+| **Add-on-beheer** (HA OS) | `list_addons`, `list_available_addons`, `get_addon_info/stats/changelog/logs`, `install_addon`, `uninstall_addon`, `set_addon_options`, `control_addon` (start/stop/restart/update/rebuild) |
+| **Back-ups & rollback** | `list/create/restore/delete_backup`, `list_file_snapshots`, `restore_config_file` |
+| **Debug & onderhoud** | `get_core/supervisor/host_logs`, `get_error_log`, `set_log_level`, `set_default_log_level`, `diagnose_entity`, `purge_database`, `system_health` |
+| **Systeem** | `get_config`, `check_config`, `restart_home_assistant`, `reload_domain`, `update_supervisor`, `reboot_host` |
+| **MQTT & energie** | `mqtt_publish`, `get_energy_prefs`, `save_energy_prefs` |
+| **Meldingen & updates** | `list/create/dismiss_notification`, `notify`, `list_updates`, `install_update` (met back-up) |
+| **Templates & data** | `render_template`, `get_history`, `get_logbook`, `get_statistics` |
+| **YAML-bestanden** | `list/read/write/delete_config_file` (met automatische snapshots) |
+
+---
+
+## 🛟 Fool-proof: niets gaat onomkeerbaar stuk
+
+Veiligheid zit standaard ingebouwd, zodat je rustig kunt experimenteren:
+
+- **Automatische snapshots** — elke keer dat Claude een YAML-bestand wijzigt of
+  verwijdert, wordt de vorige versie lokaal bewaard. Eén opdracht (*"draai die
+  wijziging terug"*) zet het terug via `restore_config_file`.
+- **Back-up & restore** — laat Claude vóór grote ingrepen een volledige back-up
+  maken (`create_backup`) en desnoods de hele installatie terugzetten
+  (`restore_backup`). Stel `HA_AUTO_BACKUP_BEFORE_UPDATE=true` in om automatisch
+  te back-uppen vóór elke update.
+- **Bevestiging vereist** voor risicovolle acties (`confirm=true`): herstarten,
+  verwijderen, updates installeren, integraties/add-ons verwijderen, host
+  rebooten, back-ups terugzetten.
+- **`check_config` vóór herstart** — laat Claude de configuratie eerst valideren.
+- **Veilige modus** — zet `HA_READ_ONLY=true` en Claude mag wél alles lezen en
+  analyseren, maar niets wijzigen. Ideaal om eerst rond te kijken.
 
 ---
 
@@ -137,25 +160,42 @@ Of kopieer [`mcp.example.json`](./mcp.example.json) naar `.mcp.json` in je proje
 
 ---
 
-## 🔒 Veiligheid
+## 🔒 Veiligheid & het vertrouwensmodel
 
-- Het token en SSH-wachtwoord geven **volledige controle** over je Home
-  Assistant. `.env` en `.mcp.json` staan in `.gitignore`.
-- De bestands-backends houden elk pad **binnen** je config-map (geen `../`).
-- Risicovolle acties vereisen een expliciete bevestiging: `restart_home_assistant`,
-  `delete_config_file`, `delete_config_entry`, `install_update` (allemaal `confirm=True`).
-- Bewerk je YAML? Laat Claude eerst `check_config()` draaien vóór een herstart.
+Je geeft veel toegang, dus dit is belangrijk. Zo is het opgezet:
+
+- **Geen cloud, geen tussenpartij.** De server draait op jóuw computer en praat
+  rechtstreeks met jouw Home Assistant. Je token verlaat je netwerk niet.
+- **Versleutelde verbinding.** Gebruik waar mogelijk een **https**-adres (bijv.
+  via Nabu Casa of een reverse proxy). De wizard waarschuwt bij een
+  onversleutelde verbinding naar een adres buiten je eigen netwerk.
+- **Geheimen afgeschermd.** De wizard zet `.env` en `.mcp.json` op
+  `chmod 600` (alleen voor jou leesbaar). Beide staan in `.gitignore`.
+- **SSH met sleutel.** Bij bestandstoegang kun je een SSH-**sleutel** kiezen in
+  plaats van een wachtwoord (`HA_SSH_KEY_FILE`).
+- **Minimale rechten (aanrader).** Maak in Home Assistant een **aparte gebruiker**
+  voor Claude en maak het token onder die gebruiker aan. Zo kun je de toegang in
+  één klik intrekken (Instellingen → Personen → gebruiker → token verwijderen).
+- **Padbeveiliging.** De bestands-backends houden elk pad **binnen** je
+  config-map (geen `../`-ontsnapping).
+- **Read-only / veilige modus.** `HA_READ_ONLY=true` blokkeert centraal álle
+  wijzigende acties (REST én WebSocket).
+- **Bevestiging + rollback** voor alles wat impact heeft (zie *Fool-proof* hierboven).
+
+> Een token intrekken? Verwijder het in Home Assistant bij je gebruiker → tabblad
+> **Beveiliging**. De koppeling werkt dan direct niet meer.
 
 ## 🗂️ Structuur
 
 ```
 src/ha_mcp/            # de MCP-server (Python)
   app.py               #   gedeelde objecten + activiteits-heartbeat
-  ha_client.py         #   REST + WebSocket client
+  ha_client.py         #   REST + WebSocket client (+ read-only handhaving)
   files.py             #   local & ssh bestands-backends (met padbeveiliging)
+  snapshots.py         #   lokale snapshots voor omkeerbare bestandswijzigingen
   setup.py             #   de interactieve wizard (ha-mcp-setup)
   dashboard_template.py#   het automatische dashboard
-  tools/               #   alle 78 tools, per thema
+  tools/               #   alle 100 tools, per thema
 custom_components/claude_link/   # de HACS-integratie (status + dashboard in HA)
 install.sh / install.ps1         # één-commando installers
 hacs.json                        # HACS-metadata

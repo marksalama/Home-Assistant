@@ -13,10 +13,14 @@ from mcp.server.fastmcp import FastMCP
 from .config import load_settings
 from .files import FilesDisabledError, get_backend
 from .ha_client import HAClient
+from .snapshots import SnapshotStore
 
 settings = load_settings()
 client = HAClient(settings)
 mcp = FastMCP("home-assistant")
+
+# Local snapshot store for reversible file edits (None if disabled).
+snapshots = SnapshotStore(settings.snapshot_dir) if settings.snapshots_enabled else None
 
 # Helper storage-collection domains that share the same WS list/create/update/delete API.
 HELPER_DOMAINS = {

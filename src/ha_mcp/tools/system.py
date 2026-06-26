@@ -3,7 +3,7 @@ updates and system health."""
 
 from __future__ import annotations
 
-from ..app import _dump, client, mcp
+from ..app import _dump, client, mcp, settings
 from ..ha_client import HAError
 
 
@@ -17,7 +17,7 @@ async def get_config() -> str:
 async def check_config() -> str:
     """Validate the configuration without restarting. Run this before restarting
     after editing YAML files."""
-    return _dump(await client.rest_post("/config/core/check_config", {}))
+    return _dump(await client.rest_post("/config/core/check_config", {}, write=False))
 
 
 @mcp.tool()
@@ -105,8 +105,17 @@ async def list_updates() -> str:
 
 
 @mcp.tool()
-async def install_update(entity_id: str, confirm: bool = False) -> str:
-    """Install a pending update for an update entity. Requires confirm=True."""
+async def install_update(entity_id: str, confirm: bool = False, backup: bool | None = None) -> str:
+    """Install a pending update for an update entity. Requires confirm=True.
+
+    Args:
+        backup: Create a backup first (for update entities that support it).
+            Defaults to the HA_AUTO_BACKUP_BEFORE_UPDATE setting.
+    """
     if not confirm:
         raise HAError("Refusing to install an update without confirm=True.")
-    return _dump(await client.rest_post("/services/update/install", {"entity_id": entity_id}))
+    do_backup = settings.auto_backup_before_update if backup is None else backup
+    data = {"entity_id": entity_id}
+    if do_backup:
+        data["backup"] = True
+    return _dump(await client.rest_post("/services/update/install", data))

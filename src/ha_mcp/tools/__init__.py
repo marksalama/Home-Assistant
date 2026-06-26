@@ -6,6 +6,7 @@ from . import (  # noqa: F401
     dashboards,
     files_tools,
     helpers,
+    maintenance,
     registry,
     supervisor,
     system,

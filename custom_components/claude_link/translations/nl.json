@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Claude Link",
+        "description": "Stel monitoring in voor je Claude Code AI-verbinding. Je kunt de standaardwaarde laten staan en op Verzenden klikken.",
+        "data": {
+          "offline_after": "Markeer als offline na (seconden zonder hartslag)"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Claude Link is al ingesteld."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Claude Link-opties",
+        "data": {
+          "offline_after": "Markeer als offline na (seconden zonder hartslag)"
+        }
+      }
+    }
+  }
+}

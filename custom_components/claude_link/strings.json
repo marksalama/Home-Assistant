@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Claude Link",
+        "description": "Set up monitoring for your Claude Code AI connection. You can leave the default and press Submit.",
+        "data": {
+          "offline_after": "Mark as offline after (seconds without a heartbeat)"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Claude Link is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Claude Link options",
+        "data": {
+          "offline_after": "Mark as offline after (seconds without a heartbeat)"
+        }
+      }
+    }
+  }
+}

@@ -15,6 +15,23 @@ class HAError(RuntimeError):
     """Raised when Home Assistant returns an error response."""
 
 
+class ReadOnlyError(RuntimeError):
+    """Raised when a mutating call is attempted while the server is read-only."""
+
+
+# WebSocket command verbs that change state. Used to enforce read-only mode.
+_WRITE_WS_VERBS = (
+    "create",
+    "update",
+    "delete",
+    "save",
+    "apply",
+    "set_prefs",
+    "import",
+    "move",
+)
+
+
 class HAClient:
     def __init__(self, settings: Settings) -> None:
         self.s = settings
@@ -36,13 +53,22 @@ class HAClient:
         resp = await self._http.get(path, params=params)
         return self._handle(resp)
 
-    async def rest_post(self, path: str, json_body: Any | None = None) -> Any:
+    async def rest_post(self, path: str, json_body: Any | None = None, *, write: bool = True) -> Any:
+        if write:
+            self._guard_write(f"POST {path}")
         resp = await self._http.post(path, json=json_body)
         return self._handle(resp)
 
     async def rest_delete(self, path: str) -> Any:
+        self._guard_write(f"DELETE {path}")
         resp = await self._http.delete(path)
         return self._handle(resp)
+
+    def _guard_write(self, what: str) -> None:
+        if self.s.read_only:
+            raise ReadOnlyError(
+                f"Server is in read-only mode (HA_READ_ONLY=true); refusing to perform: {what}"
+            )
 
     @staticmethod
     def _handle(resp: httpx.Response) -> Any:
@@ -62,6 +88,9 @@ class HAClient:
         A fresh connection per call keeps the implementation simple and stateless,
         which is plenty for an interactive MCP workload.
         """
+        cmd_type = str(command.get("type", ""))
+        if any(verb in cmd_type for verb in _WRITE_WS_VERBS):
+            self._guard_write(f"ws:{cmd_type}")
         connect_kwargs: dict[str, Any] = {"max_size": None, "open_timeout": self.s.timeout}
         if self.s.ws_url.startswith("wss://") and not self.s.verify_ssl:
             import ssl

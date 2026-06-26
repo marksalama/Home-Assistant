@@ -59,6 +59,12 @@ class Settings:
     ssh_key_file: str | None
     ssh_config_dir: str
 
+    # safety / security
+    read_only: bool
+    snapshots_enabled: bool
+    snapshot_dir: str
+    auto_backup_before_update: bool
+
     @property
     def ws_url(self) -> str:
         base = self.ha_url.rstrip("/")
@@ -96,4 +102,12 @@ def load_settings() -> Settings:
         ssh_password=os.environ.get("HA_SSH_PASSWORD"),
         ssh_key_file=os.environ.get("HA_SSH_KEY_FILE"),
         ssh_config_dir=os.environ.get("HA_SSH_CONFIG_DIR", "/config"),
+        read_only=_as_bool(os.environ.get("HA_READ_ONLY"), False),
+        snapshots_enabled=_as_bool(os.environ.get("HA_SNAPSHOTS"), True),
+        snapshot_dir=os.environ.get(
+            "HA_SNAPSHOT_DIR", str(Path.home() / ".ha-mcp" / "snapshots")
+        ),
+        auto_backup_before_update=_as_bool(
+            os.environ.get("HA_AUTO_BACKUP_BEFORE_UPDATE"), False
+        ),
     )

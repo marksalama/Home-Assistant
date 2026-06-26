@@ -11,7 +11,10 @@
         "HA_SSH_PORT": "22",
         "HA_SSH_USER": "root",
         "HA_SSH_PASSWORD": "PASTE_SSH_ADDON_PASSWORD_HERE",
-        "HA_SSH_CONFIG_DIR": "/config"
+        "HA_SSH_CONFIG_DIR": "/config",
+        "HA_READ_ONLY": "false",
+        "HA_SNAPSHOTS": "true",
+        "HA_AUTO_BACKUP_BEFORE_UPDATE": "true"
       }
     }
   }

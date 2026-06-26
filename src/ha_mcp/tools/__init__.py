@@ -7,6 +7,7 @@ from . import (  # noqa: F401
     files_tools,
     helpers,
     maintenance,
+    prompts,
     registry,
     supervisor,
     system,

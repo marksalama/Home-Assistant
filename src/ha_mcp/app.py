@@ -15,9 +15,49 @@ from .files import FilesDisabledError, get_backend
 from .ha_client import HAClient
 from .snapshots import SnapshotStore
 
+INSTRUCTIONS = """\
+This server gives you broad control over a Home Assistant installation. Follow
+these conventions so tools are used correctly and efficiently.
+
+DISCOVERY (be token-efficient):
+- To find entities, use list_entities(domain=..., search=...) with filters
+  instead of dumping everything. Domains: light, switch, sensor, climate, etc.
+- For one entity's full picture use get_state, or diagnose_entity for debugging
+  (state + registry + device in one call).
+- list_areas / list_devices / list_entity_registry / list_labels for structure.
+
+CONTROLLING DEVICES:
+- Use call_service(domain, service, data) for actions. Target with entity_id,
+  area_id, device_id or label_id (so one call can act on a whole room).
+- set_state only changes HA's state machine; it does NOT command a device.
+
+CONFIGURING (automations/scripts/scenes/helpers):
+- Prefer the dedicated tools: upsert_automation/script/scene (they reload
+  automatically), and create/update/delete_helper. Read the current config with
+  get_automation/get_script/get_scene before editing.
+
+EDITING RAW YAML (safe & reversible):
+- read_config_file before write_config_file. Writes auto-snapshot the previous
+  version; undo with restore_config_file (list_file_snapshots to see versions).
+- After editing core YAML: run check_config, then reload_domain(...) if possible,
+  otherwise restart_home_assistant(confirm=True). Never restart without checking.
+
+SAFETY:
+- Destructive tools require confirm=True (restart, reboot, delete_*, install_update,
+  uninstall_addon, restore_backup). Consider create_backup before big changes.
+- If a tool raises a read-only error, the user enabled HA_READ_ONLY; ask them to
+  disable it for changes.
+
+HA OS ONLY: add-on and backup tools (list_addons, control_addon, *_backup,
+host/supervisor tools) only work on HA OS / Supervised; they error otherwise.
+
+DEBUGGING: get_error_log, get_core_logs/get_supervisor_logs/get_addon_logs,
+set_log_level(integration, "debug"), system_health.
+"""
+
 settings = load_settings()
 client = HAClient(settings)
-mcp = FastMCP("home-assistant")
+mcp = FastMCP("home-assistant", instructions=INSTRUCTIONS)
 
 # Local snapshot store for reversible file edits (None if disabled).
 snapshots = SnapshotStore(settings.snapshot_dir) if settings.snapshots_enabled else None

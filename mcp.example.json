@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "home-assistant": {
+      "command": "ha-mcp",
+      "env": {
+        "HA_URL": "http://homeassistant.local:8123",
+        "HA_TOKEN": "PASTE_YOUR_LONG_LIVED_TOKEN_HERE",
+        "HA_VERIFY_SSL": "true",
+        "HA_FILES_BACKEND": "ssh",
+        "HA_SSH_HOST": "homeassistant.local",
+        "HA_SSH_PORT": "22",
+        "HA_SSH_USER": "root",
+        "HA_SSH_PASSWORD": "PASTE_SSH_ADDON_PASSWORD_HERE",
+        "HA_SSH_CONFIG_DIR": "/config"
+      }
+    }
+  }
+}

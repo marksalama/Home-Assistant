@@ -1,0 +1,21 @@
+report:
+  name: Report activity
+  description: >-
+    Heartbeat from the Claude Code MCP bridge. Normally called automatically by
+    the bridge; you don't need to call this yourself.
+  fields:
+    tool_calls:
+      name: Tool calls
+      description: Total number of tool calls handled by the bridge so far.
+      example: 42
+      selector:
+        number:
+          min: 0
+          max: 1000000
+          mode: box
+    source:
+      name: Source
+      description: Identifier of the reporting client.
+      example: claude-code
+      selector:
+        text:

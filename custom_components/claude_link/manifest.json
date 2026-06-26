@@ -1,0 +1,13 @@
+{
+  "domain": "claude_link",
+  "name": "Claude Link",
+  "version": "0.1.0",
+  "documentation": "https://github.com/marksalama/home-assistant",
+  "issue_tracker": "https://github.com/marksalama/home-assistant/issues",
+  "codeowners": ["@marksalama"],
+  "dependencies": [],
+  "requirements": [],
+  "iot_class": "local_push",
+  "config_flow": true,
+  "integration_type": "service"
+}

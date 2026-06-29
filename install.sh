@@ -11,6 +11,14 @@ if ! command -v python3 >/dev/null 2>&1; then
   echo "Python 3 is niet gevonden. Installeer Python 3.10+ via https://www.python.org/downloads/ en probeer opnieuw."
   exit 1
 fi
+if ! python3 - <<'PY'
+import sys
+raise SystemExit(0 if sys.version_info >= (3, 10) else 1)
+PY
+then
+  echo "Python 3.10 of nieuwer is nodig. Installeer een nieuwere versie en probeer opnieuw."
+  exit 1
+fi
 
 echo "==> Virtuele omgeving aanmaken (.venv)..."
 python3 -m venv .venv

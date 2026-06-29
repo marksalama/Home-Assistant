@@ -65,6 +65,15 @@ class Settings:
     snapshot_dir: str
     auto_backup_before_update: bool
 
+    # tool filtering
+    disabled_tools: set
+    enabled_tools: set | None
+
+    # HTTP transport
+    transport: str
+    http_host: str
+    http_port: int
+
     @property
     def ws_url(self) -> str:
         base = self.ha_url.rstrip("/")
@@ -110,4 +119,9 @@ def load_settings() -> Settings:
         auto_backup_before_update=_as_bool(
             os.environ.get("HA_AUTO_BACKUP_BEFORE_UPDATE"), False
         ),
+        disabled_tools={t.strip() for t in os.environ.get("HA_DISABLED_TOOLS", "").split(",") if t.strip()},
+        enabled_tools={t.strip() for t in os.environ.get("HA_ENABLED_TOOLS", "").split(",") if t.strip()} or None,
+        transport=os.environ.get("HA_TRANSPORT", "stdio").strip().lower(),
+        http_host=os.environ.get("HA_HOST", "127.0.0.1").strip(),
+        http_port=int(os.environ.get("HA_PORT", "8765")),
     )

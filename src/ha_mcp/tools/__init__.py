@@ -2,9 +2,13 @@
 
 from . import (  # noqa: F401
     automations,
+    blueprints,
+    calendar,
+    camera,
     core,
     dashboards,
     files_tools,
+    groups,
     helpers,
     maintenance,
     prompts,
@@ -12,4 +16,7 @@ from . import (  # noqa: F401
     supervisor,
     system,
     templates,
+    todo,
+    traces,
+    discovery,  # imported last so _classify_tools sees all registered tools
 )

@@ -8,11 +8,11 @@ Dit project bestaat uit **drie onderdelen**:
 
 | Onderdeel | Wat het doet | Waar het draait |
 |-----------|--------------|-----------------|
-| 🧠 **MCP-server** | 100 tools waarmee Claude je HA bestuurt, configureert, beheert en debugt (REST + WebSocket API + ruwe YAML-bestanden) | Op je computer, naast Claude Code |
+| 🧠 **MCP-server** | 141 tools waarmee Claude je HA bestuurt, configureert, beheert en debugt (REST + WebSocket API + ruwe YAML-bestanden) | Op je computer, naast Claude Code |
 | 🏠 **Claude Link** (integratie) | Visuele status-tegels + automatisch dashboard in Home Assistant, installeerbaar via **HACS** | In Home Assistant |
-| ✨ **Setup-wizard** | Zet alles automatisch op: verbinding testen, koppelen aan Claude Code, dashboard aanmaken | Eén commando |
+| ✨ **Setup-wizard** | Zet alles automatisch op: verbinding testen, koppelen aan je AI-client, dashboard aanmaken | Eén commando |
 
-> Gemaakt voor **HA OS / Supervised** (jij hebt HACS) — werkt ook op Container/Core.
+> Geschikt voor **HA 2026.6+** · **HA OS / Supervised / Container / Core** · 9 AI-clients ondersteund.
 
 ---
 
@@ -40,10 +40,11 @@ De wizard:
 2. **opent automatisch** de pagina waar je een token aanmaakt — kopieer en plak het;
 3. **test** de verbinding;
 4. vraagt (optioneel) je SSH-gegevens zodat Claude ook YAML-bestanden kan bewerken;
-5. **koppelt** de server automatisch aan Claude Code en schrijft `.env` + `.mcp.json`;
-6. **maakt** het *Claude Link*-dashboard automatisch in Home Assistant aan.
+5. laat je kiezen **voor welke AI-clients** je de MCP-server wilt instellen;
+6. **schrijft** `.env` + config-bestanden voor elke gekozen client;
+7. **maakt** het *Claude Link*-dashboard automatisch in Home Assistant aan.
 
-Daarna: **herstart Claude Code** en typ `/mcp` — je ziet `home-assistant` als verbonden.
+Daarna: **herstart je AI-client** en controleer of `home-assistant` verbonden is.
 
 ### Stap 2 — De visuele integratie installeren (via HACS)
 
@@ -67,16 +68,43 @@ Klaar! 🎉
 
 ---
 
+## 🤖 Ondersteunde AI-clients
+
+De setup-wizard kan de MCP-server automatisch koppelen aan de volgende clients:
+
+| Client | Transport | Config-bestand |
+|--------|-----------|----------------|
+| **Claude Code** (CLI) | stdio of HTTP | `.mcp.json` + `claude mcp add` |
+| **Claude Desktop** | stdio (of `mcp-proxy` voor HTTP) | `claude_desktop_config.json` |
+| **Gemini CLI** | stdio | `~/.gemini/settings.json` |
+| **Cursor** | stdio (of `mcp-proxy` voor HTTP) | `~/.cursor/mcp.json` |
+| **VSCode / GitHub Copilot** | stdio of HTTP | `.vscode/mcp.json` |
+| **Open WebUI** | HTTP | Settings → MCP Servers |
+| **Antigravity CLI** | stdio | `~/.gemini/antigravity-cli/mcp_config.json` |
+| **OpenCode** | stdio of HTTP | `opencode.json` |
+| **ChatGPT** (remote) | HTTP | Workspace settings → Apps |
+
+> **Tip:** stdio is de standaard (server draait lokaal naast je client). HTTP-mode
+> (`HA_TRANSPORT=http`) is nodig voor remote clients zoals ChatGPT of Open WebUI.
+
+---
+
 ## 💬 Wat kun je nu tegen Claude zeggen?
 
+- "Geef me een overzicht van mijn hele installatie."
 - "Zet alle lampen in de woonkamer op 30%."
 - "Maak een scene 'filmavond' met gedimd licht en de tv aan."
 - "Schrijf een automation die de buitenverlichting bij zonsondergang aanzet."
+- "Debug waarom mijn ochtend-automation niet liep — laat de trace zien."
 - "Laat de error log zien en los de waarschuwingen op."
 - "Voeg een helper `vakantiemodus` toe en gebruik die in een automation."
 - "Open `configuration.yaml`, voeg een template-sensor toe, valideer en herstart."
 - "Maak een back-up en update de Mosquitto add-on."
 - "Maak een nieuw dashboard met een kaart per kamer."
+- "Welke entiteiten zijn exposed aan Assist?"
+- "Importeer een blueprint van de community forum."
+- "Voeg een afspraak toe aan mijn agenda."
+- "Zet alle lichten uit in de woonkamer, keuken en hal in één keer."
 
 ### Kant-en-klare opdrachten (slash-commando's)
 
@@ -117,18 +145,18 @@ bestandsrechten, en geeft per onderdeel een ✅/⚠️/❌ met tips:
 
 | Categorie | Tools |
 |-----------|-------|
-| **States & besturing** | `list_entities`, `get_state`, `set_state`, `call_service`, `fire_event`, `list_services`, `bulk_control` |
-| **Overzicht & zoeken** | `get_overview`, `fuzzy_search` |
+| **States & besturing** | `list_entities` (met `fields=` projectie), `get_state` (met `attribute_keys=`), `set_state`, `call_service`, `fire_event`, `list_services`, `bulk_control` |
+| **Overzicht & zoeken** | `get_overview`, `fuzzy_search` (fuzzy match op naam/area/label) |
 | **Automations** | `list/get/upsert/delete/trigger_automation` |
 | **Scripts** | `list/get/upsert/delete/run_script` |
 | **Scenes** | `list/get/upsert/delete/activate_scene` |
-| **Blueprints** | `list/get_blueprint`, `import_blueprint` |
-| **Traces** | `list/get/delete_automation_trace` |
+| **Blueprints** | `list_blueprints`, `get_blueprint`, `import_blueprint` |
+| **Automation-traces** | `list_automation_traces`, `get_automation_trace`, `delete_automation_trace` |
 | **Todo-lijsten** | `list_todo_lists`, `get/add/update/remove_todo_item` |
 | **Kalender** | `list_calendars`, `get/create/update/remove_calendar_event` |
-| **Camera** | `get_camera_image` |
+| **Camera** | `get_camera_image` (base64-snapshot) |
 | **Dashboards** | `list/get/save/create_dashboard` |
-| **Helpers** | `list/create/update/delete_helper` (input_*, counter, timer, schedule) |
+| **Helpers** | `list/create/update/delete_helper` (input_\*, counter, timer, schedule) |
 | **Groepen** | `list/create/update/remove_group` |
 | **Areas & floors** | `list/create/update/delete_area`, `list/create/update/delete_floor` |
 | **Devices & entities** | `list/update/remove_device`, `list_entity_registry`, `update/remove_entity`, `get/set_entity_exposure` |
@@ -136,13 +164,51 @@ bestandsrechten, en geeft per onderdeel een ✅/⚠️/❌ met tips:
 | **Integraties** | `list/reload/delete_config_entry` |
 | **Add-on-beheer** (HA OS) | `list_addons`, `list_available_addons`, `get_addon_info/stats/changelog/logs`, `install_addon`, `uninstall_addon`, `set_addon_options`, `control_addon` (start/stop/restart/update/rebuild) |
 | **Back-ups & rollback** | `list/create/restore/delete_backup`, `list_file_snapshots`, `restore_config_file` |
-| **Debug & onderhoud** | `get_core/supervisor/host_logs`, `get_error_log`, `set_log_level`, `set_default_log_level`, `diagnose_entity`, `purge_database`, `system_health` |
+| **Debug & onderhoud** | `get_core/supervisor/host_logs`, `get_error_log` (via `system_log`), `set_log_level`, `set_default_log_level`, `diagnose_entity`, `purge_database`, `system_health` |
 | **Systeem** | `get_config`, `check_config`, `restart_home_assistant`, `reload_domain`, `update_supervisor`, `reboot_host` |
 | **MQTT & energie** | `mqtt_publish`, `get_energy_prefs`, `save_energy_prefs` |
 | **Meldingen & updates** | `list/create/dismiss_notification`, `notify`, `list_updates`, `install_update` (met back-up) |
 | **Templates & data** | `render_template`, `get_history`, `get_logbook`, `get_statistics` |
-| **YAML-bestanden** | `list/read/write/delete_config_file`, `set_yaml_key` (met snapshots) |
+| **YAML-bestanden** | `list/read/write/delete_config_file`, `set_yaml_key` (gestructureerde edit met validatie), `restore_config_file` (met snapshots) |
 | **Discovery & MCP** | `search_tools`, `call_read_tool`, `call_write_tool`, `call_delete_tool` |
+
+### MCP Resources (read-only snapshots)
+
+Naast tools biedt de server ook **MCP Resources** die je AI-client kan opvragen
+zonder een tool-call — handig voor context:
+
+| URI | Inhoud |
+|-----|--------|
+| `homeassistant://overview` | Installatie-overzicht (versie, entity-counts, errors, areas) |
+| `homeassistant://services` | Alle beschikbare services per domein |
+| `homeassistant://areas` | Alle areas en floors |
+| `homeassistant://integrations` | Alle config entries met hun state |
+
+---
+
+## 🔎 Tool-discovery (voor kleinere / lokale LLM's)
+
+Met 141 tools kan de tool-catalogus kleinere modellen (Claude Haiku, Gemini,
+ChatGPT, lokale Ollama-modellen) overweldigen. Zet **search-based discovery**
+aan om alleen de benodigde tools in context te laden:
+
+```bash
+HA_ENABLE_TOOL_SEARCH=true
+```
+
+De volledige catalogus wordt dan vervangen door vier entry-points:
+
+| Tool | Doel |
+|------|------|
+| `search_tools` | Zoek tools op trefwoord (token-overlap scoring) |
+| `call_read_tool` | Voer een alleen-lezen tool uit |
+| `call_write_tool` | Voer een schrijf-tool uit (create/update) |
+| `call_delete_tool` | Voer een verwijder-tool uit |
+
+Houd essentiële tools altijd zichtbaar met `HA_PINNED_TOOLS=list_entities,get_overview,get_state,call_service`.
+
+> **Belangrijk:** na het wijzigen van deze instelling moet je AI-client zijn
+> tool-lijst vernieuwen (opnieuw verbinden of de MCP-server herstarten).
 
 ---
 
@@ -153,6 +219,8 @@ Veiligheid zit standaard ingebouwd, zodat je rustig kunt experimenteren:
 - **Automatische snapshots** — elke keer dat Claude een YAML-bestand wijzigt of
   verwijdert, wordt de vorige versie lokaal bewaard. Eén opdracht (*"draai die
   wijziging terug"*) zet het terug via `restore_config_file`.
+- **`set_yaml_key` met validatie** — voeg, vervang of verwijder een enkele
+  top-level YAML-key met automatische `check_config`-validatie ná de wijziging.
 - **Back-up & restore** — laat Claude vóór grote ingrepen een volledige back-up
   maken (`create_backup`) en desnoods de hele installatie terugzetten
   (`restore_backup`). Stel `HA_AUTO_BACKUP_BEFORE_UPDATE=true` in om automatisch
@@ -163,6 +231,29 @@ Veiligheid zit standaard ingebouwd, zodat je rustig kunt experimenteren:
 - **`check_config` vóór herstart** — laat Claude de configuratie eerst valideren.
 - **Veilige modus** — zet `HA_READ_ONLY=true` en Claude mag wél alles lezen en
   analyseren, maar niets wijzigen. Ideaal om eerst rond te kijken.
+- **Per-tool uitschakelen** — met `HA_DISABLED_TOOLS=reboot_host,restore_backup`
+  zet je specifieke tools uit zonder de rest te beïnvloeden. Of gebruik
+  `HA_ENABLED_TOOLS=list_entities,get_state,call_service` voor een strikte
+  whitelist.
+
+---
+
+## 🌐 Transport: stdio, HTTP of SSE
+
+De server ondersteunt drie transportmodi:
+
+| Modus | wanneer te gebruiken | start-commando |
+|-------|----------------------|----------------|
+| **stdio** (standaard) | Client draait lokaal (Claude Code, Claude Desktop, Cursor) | `ha-mcp` |
+| **HTTP** (Streamable HTTP) | Remote clients (ChatGPT, Open WebUI) of meerdere clients tegelijk | `ha-mcp --transport http --host 0.0.0.0 --port 8765` |
+| **SSE** (Server-Sent Events) | Clients die SSE verlangen i.p.v. Streamable HTTP | `ha-mcp --transport sse --host 0.0.0.0 --port 8765` |
+
+De transportmodus kan ook via env-var worden ingesteld: `HA_TRANSPORT=http`,
+`HA_HOST=127.0.0.1`, `HA_PORT=8765`.
+
+> Clients die alleen stdio ondersteunen (zoals Claude Desktop) kunnen
+> `mcp-proxy` gebruiken als gateway naar een HTTP-server. Zie
+> [mcp-proxy](https://github.com/sparfenyuk/mcp-proxy).
 
 ---
 
@@ -202,7 +293,46 @@ claude mcp add home-assistant \
 ```
 Of kopieer [`mcp.example.json`](./mcp.example.json) naar `.mcp.json` in je project.
 
+### 6. HTTP-mode (voor remote clients)
+```bash
+ha-mcp --transport http --host 0.0.0.0 --port 8765
+```
+Configureer je client met de URL `http://jouw-pc:8765/mcp`.
+
 </details>
+
+---
+
+## ⚙️ Alle configuratie-opties
+
+| Variabele | Standaard | Beschrijving |
+|-----------|-----------|--------------|
+| `HA_URL` | — | Webadres van je Home Assistant |
+| `HA_TOKEN` | — | Long-Lived Access Token |
+| `HA_VERIFY_SSL` | `true` | SSL-certificaten controleren (zet `false` bij self-signed) |
+| `HA_TIMEOUT` | `30` | Timeout in seconden voor API-calls |
+| `HA_FILES_BACKEND` | `none` | Bestandstoegang: `none`, `local` of `ssh` |
+| `HA_CONFIG_DIR` | — | Pad naar HA config-map (voor `local` backend) |
+| `HA_SSH_HOST` | — | SSH-host (voor `ssh` backend) |
+| `HA_SSH_PORT` | `22` | SSH-poort |
+| `HA_SSH_USER` | — | SSH-gebruiker |
+| `HA_SSH_PASSWORD` | — | SSH-wachtwoord |
+| `HA_SSH_KEY_FILE` | — | Pad naar SSH private key (i.p.v. wachtwoord) |
+| `HA_SSH_CONFIG_DIR` | `/config` | Config-map op de SSH-host |
+| `HA_READ_ONLY` | `false` | Veilige modus: alleen lezen, niets wijzigen |
+| `HA_SNAPSHOTS` | `true` | Lokale snapshots vóór YAML-wijzigingen |
+| `HA_SNAPSHOT_DIR` | `~/.ha-mcp/snapshots` | Waar snapshots worden opgeslagen |
+| `HA_AUTO_BACKUP_BEFORE_UPDATE` | `false` | Automatisch back-up vóór updates |
+| `HA_DISABLED_TOOLS` | — | Comma-gescheiden lijst van uit te schakelen tools |
+| `HA_ENABLED_TOOLS` | — | Whitelist: alleen deze tools exposen |
+| `HA_ENABLE_TOOL_SEARCH` | `false` | Search-based tool-discovery aanzetten |
+| `HA_TOOL_SEARCH_MAX_RESULTS` | `5` | Max zoekresultaten (2–10) |
+| `HA_PINNED_TOOLS` | — | Tools die altijd zichtbaar blijven in search-mode |
+| `HA_TRANSPORT` | `stdio` | Transport: `stdio`, `sse` of `http` |
+| `HA_HOST` | `127.0.0.1` | Bind-adres voor HTTP/SSE |
+| `HA_PORT` | `8765` | Bind-poort voor HTTP/SSE |
+
+Zie [`.env.example`](./.env.example) voor gedetailleerde uitleg per variabele.
 
 ---
 
@@ -224,31 +354,70 @@ Je geeft veel toegang, dus dit is belangrijk. Zo is het opgezet:
   één klik intrekken (Instellingen → Personen → gebruiker → token verwijderen).
 - **Padbeveiliging.** De bestands-backends houden elk pad **binnen** je
   config-map (geen `../`-ontsnapping).
-- **Read-only / veilige modus.** `HA_READ_ONLY=true` blokkeert centraal acties
+- **Read-only / veilige modus.** `HA_READ_ONLY=true` blokkeert alle acties
   die apparaten, dashboards, integraties of YAML-bestanden wijzigen. De
   onschuldige status-heartbeat naar Claude Link blijft toegestaan, zodat je in
   Home Assistant nog steeds ziet of de koppeling leeft.
+- **Per-tool beveiliging.** Schakel specifieke tools uit met `HA_DISABLED_TOOLS`
+  of beperk tot een whitelist met `HA_ENABLED_TOOLS`.
 - **Bevestiging + rollback** voor alles wat impact heeft (zie *Fool-proof* hierboven).
 
 > Een token intrekken? Verwijder het in Home Assistant bij je gebruiker → tabblad
 > **Beveiliging**. De koppeling werkt dan direct niet meer.
 
+---
+
 ## 🗂️ Structuur
 
 ```
-src/ha_mcp/            # de MCP-server (Python)
-  app.py               #   gedeelde objecten + activiteits-heartbeat
-  ha_client.py         #   REST + WebSocket client (+ read-only handhaving)
-  files.py             #   local & ssh bestands-backends (met padbeveiliging)
-  snapshots.py         #   lokale snapshots voor omkeerbare bestandswijzigingen
-  setup.py             #   de interactieve wizard (ha-mcp-setup)
-  doctor.py            #   de gezondheidscheck (ha-mcp-doctor)
-  dashboard_template.py#   het automatische dashboard
-  tools/               #   alle 100 tools + workflow-prompts, per thema
-custom_components/claude_link/   # de HACS-integratie (status + dashboard in HA)
-install.sh / install.ps1         # één-commando installers
-hacs.json                        # HACS-metadata
+src/ha_mcp/                        # de MCP-server (Python)
+  __main__.py                      #   entry-point (--transport stdio/sse/http)
+  app.py                           #   gedeelde objecten + activiteits-heartbeat + tool-filter
+  config.py                        #   env-driven configuratie (Settings)
+  ha_client.py                     #   REST + WebSocket client (+ read-only handhaving)
+  files.py                         #   local & ssh bestands-backends (met padbeveiliging)
+  snapshots.py                     #   lokale snapshots voor omkeerbare bestandswijzigingen
+  server.py                        #   import → registreert alle tools + resources + discovery
+  resources.py                     #   MCP Resources (homeassistant://overview, /services, …)
+  setup.py                         #   de interactieve wizard (ha-mcp-setup, 9 clients)
+  doctor.py                        #   de gezondheidscheck (ha-mcp-doctor)
+  dashboard_template.py            #   het automatische Claude Link dashboard
+  tools/                           #   alle 141 tools + workflow-prompts, per thema
+    core.py                        #     states, services, events, get_overview, fuzzy_search, bulk_control
+    automations.py                 #     automations, scripts, scenes
+    dashboards.py                  #     Lovelace dashboards
+    helpers.py                     #     input_*, counter, timer, schedule
+    registry.py                    #     areas, floors, devices, entities, labels, persons, zones, config entries, entity exposure
+    supervisor.py                  #     add-ons, back-ups, logs, host, supervisor
+    system.py                      #     config, check_config, restart, reload, notifications, updates
+    maintenance.py                 #     log levels, purge, mqtt, energy, diagnose
+    templates.py                   #     render_template, history, logbook, error_log, statistics
+    files_tools.py                 #     list/read/write/delete config files, set_yaml_key, snapshots
+    todo.py                        #     todo-lijsten (REST service calls)
+    calendar.py                    #     kalenders (REST + WS)
+    camera.py                      #     camera-snapshots (base64)
+    blueprints.py                  #     automation/script blueprints
+    groups.py                      #     entity-groepen (group.set/remove)
+    traces.py                      #     automation-traces (debugging)
+    discovery.py                   #     tool-search proxy (search_tools, call_read/write/delete_tool)
+    prompts.py                     #     5 workflow-prompts (slash-commando's)
+custom_components/claude_link/     # de HACS-integratie (status + dashboard in HA)
+install.sh / install.ps1           # één-commando installers
+hacs.json                          # HACS-metadata
+mcp.example.json                   # voorbeeld-configuratie (stdio + HTTP)
+.env.example                       # alle configuratie-opties met uitleg
 ```
+
+---
+
+## 📋 Systeemvereisten
+
+- **Home Assistant** 2026.6 of nieuwer
+- **Python** 3.10 of nieuwer (op de machine waar de MCP-server draait)
+- **HACS** geïnstalleerd in Home Assistant (voor de Claude Link integratie)
+- Optioneel: **Advanced SSH & Web Terminal** add-on (voor YAML-bestandstoegang op HA OS)
+
+---
 
 ## Licentie
 

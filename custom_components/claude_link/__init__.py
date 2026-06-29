@@ -36,7 +36,7 @@ PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.BUTTON]
 
 REPORT_SCHEMA = vol.Schema(
     {
-        vol.Optional("tool_calls"): vol.Coerce(int),
+        vol.Optional("tool_calls"): vol.All(vol.Coerce(int), vol.Range(min=0)),
         vol.Optional("source"): cv.string,
     }
 )
@@ -94,8 +94,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.async_on_unload(
         async_track_time_interval(hass, _tick, timedelta(seconds=15))
     )
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Reload the entry when options change."""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

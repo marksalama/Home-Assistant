@@ -5,6 +5,7 @@ from __future__ import annotations
 from homeassistant.components.button import ButtonEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .entity import ClaudeLinkEntity
@@ -25,8 +26,18 @@ class ClaudeLinkBackupButton(ClaudeLinkEntity, ButtonEntity):
         self._attr_unique_id = f"{entry.entry_id}_create_backup"
 
     async def async_press(self) -> None:
-        # Prefer the modern core backup service, fall back to the Supervisor one.
-        if self.hass.services.has_service("backup", "create"):
+        # HA OS exposes a direct Supervisor service that does not depend on a
+        # selected core backup agent.
+        if self.hass.services.has_service("hassio", "backup_full"):
+            await self.hass.services.async_call(
+                "hassio",
+                "backup_full",
+                {"name": "Claude Link backup", "compressed": True},
+                blocking=False,
+            )
+        elif self.hass.services.has_service("backup", "create_automatic"):
+            await self.hass.services.async_call("backup", "create_automatic", blocking=False)
+        elif self.hass.services.has_service("backup", "create"):
             await self.hass.services.async_call("backup", "create", blocking=False)
-        elif self.hass.services.has_service("hassio", "backup_full"):
-            await self.hass.services.async_call("hassio", "backup_full", blocking=False)
+        else:
+            raise HomeAssistantError("No Home Assistant backup service is available.")

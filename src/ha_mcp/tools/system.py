@@ -6,6 +6,9 @@ from __future__ import annotations
 from ..app import _dump, client, mcp, settings
 from ..ha_client import HAError
 
+UPDATE_FEATURE_INSTALL = 1
+UPDATE_FEATURE_BACKUP = 8
+
 
 @mcp.tool()
 async def get_config() -> str:
@@ -90,17 +93,24 @@ async def notify(message: str, title: str | None = None, target: str = "notify")
 async def list_updates() -> str:
     """List entities that have an update available (integrations, add-ons, HA)."""
     states = await client.rest_get("/states")
-    items = [
-        {
-            "entity_id": s["entity_id"],
-            "title": s.get("attributes", {}).get("title")
-            or s.get("attributes", {}).get("friendly_name", ""),
-            "installed_version": s.get("attributes", {}).get("installed_version"),
-            "latest_version": s.get("attributes", {}).get("latest_version"),
-        }
-        for s in states
-        if s["entity_id"].startswith("update.") and s["state"] == "on"
-    ]
+    items = []
+    for state in states:
+        if not state["entity_id"].startswith("update.") or state["state"] != "on":
+            continue
+        attrs = state.get("attributes", {})
+        supported_features = int(attrs.get("supported_features") or 0)
+        items.append(
+            {
+                "entity_id": state["entity_id"],
+                "title": attrs.get("title") or attrs.get("friendly_name", ""),
+                "installed_version": attrs.get("installed_version"),
+                "latest_version": attrs.get("latest_version"),
+                "release_url": attrs.get("release_url"),
+                "can_install": bool(supported_features & UPDATE_FEATURE_INSTALL),
+                "supports_backup": bool(supported_features & UPDATE_FEATURE_BACKUP),
+                "supported_features": supported_features,
+            }
+        )
     return _dump({"count": len(items), "updates": items})
 
 
@@ -114,8 +124,52 @@ async def install_update(entity_id: str, confirm: bool = False, backup: bool | N
     """
     if not confirm:
         raise HAError("Refusing to install an update without confirm=True.")
+
+    state = await client.rest_get(f"/states/{entity_id}")
+    attrs = state.get("attributes", {})
+    supported_features = int(attrs.get("supported_features") or 0)
+
+    if state.get("state") != "on":
+        return _dump(
+            {
+                "ok": True,
+                "changed": False,
+                "entity_id": entity_id,
+                "state": state.get("state"),
+                "installed_version": attrs.get("installed_version"),
+                "latest_version": attrs.get("latest_version"),
+                "note": "No update is currently pending for this entity.",
+            }
+        )
+
+    if not supported_features & UPDATE_FEATURE_INSTALL:
+        raise HAError(
+            f"{entity_id} reports an update but does not support update.install. "
+            "It must be updated outside Home Assistant or through its own integration."
+        )
+
     do_backup = settings.auto_backup_before_update if backup is None else backup
     data = {"entity_id": entity_id}
+    backup_note = None
     if do_backup:
-        data["backup"] = True
-    return _dump(await client.rest_post("/services/update/install", data))
+        if supported_features & UPDATE_FEATURE_BACKUP:
+            data["backup"] = True
+        else:
+            backup_note = (
+                "Backup was requested but this update entity does not support "
+                "the update.install backup option; install was started without it."
+            )
+
+    result = await client.rest_post("/services/update/install", data)
+    return _dump(
+        {
+            "ok": True,
+            "entity_id": entity_id,
+            "installed_version": attrs.get("installed_version"),
+            "latest_version": attrs.get("latest_version"),
+            "backup_requested": do_backup,
+            "backup_option_sent": bool(data.get("backup")),
+            "note": backup_note,
+            "result": result,
+        }
+    )

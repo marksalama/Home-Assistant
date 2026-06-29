@@ -53,6 +53,11 @@ Daarna: **herstart Claude Code** en typ `/mcp` — je ziet `home-assistant` als 
 4. Zoek **Claude Link** in HACS, klik **Downloaden**, en **herstart Home Assistant**.
 5. Ga naar **Instellingen → Apparaten & diensten → Integratie toevoegen**, zoek **Claude Link** en klik op **Verzenden**.
 
+Krijg je in HACS/GitHub een **404**? Dan bestaat de repository nog niet publiek
+op GitHub, of hij staat privé. Maak de repository publiek of push deze code naar
+`https://github.com/marksalama/Home-Assistant`; HACS kan geen lokale map op je
+computer installeren.
+
 Je krijgt nu in Home Assistant:
 
 - een apparaat **Claude Link** met tegels: *Verbonden*, *Laatste activiteit*, *Aantal acties* en een knop *Maak back-up*;
@@ -99,24 +104,35 @@ de verbinding, de WebSocket, bestandstoegang, de integratie en je
 bestandsrechten, en geeft per onderdeel een ✅/⚠️/❌ met tips:
 
 ```bash
-.venv/bin/ha-mcp-doctor     # of: ha-mcp-doctor  (in de geactiveerde venv)
+# Windows PowerShell
+.\.venv\Scripts\ha-mcp-doctor.exe
+
+# macOS / Linux
+./.venv/bin/ha-mcp-doctor
 ```
 
 ---
 
-## 🧰 Wat de MCP-server allemaal kan (100 tools)
+## 🧰 Wat de MCP-server allemaal kan (141 tools)
 
 | Categorie | Tools |
 |-----------|-------|
-| **States & besturing** | `list_entities`, `get_state`, `set_state`, `call_service`, `fire_event`, `list_services` |
+| **States & besturing** | `list_entities`, `get_state`, `set_state`, `call_service`, `fire_event`, `list_services`, `bulk_control` |
+| **Overzicht & zoeken** | `get_overview`, `fuzzy_search` |
 | **Automations** | `list/get/upsert/delete/trigger_automation` |
 | **Scripts** | `list/get/upsert/delete/run_script` |
 | **Scenes** | `list/get/upsert/delete/activate_scene` |
+| **Blueprints** | `list/get_blueprint`, `import_blueprint` |
+| **Traces** | `list/get/delete_automation_trace` |
+| **Todo-lijsten** | `list_todo_lists`, `get/add/update/remove_todo_item` |
+| **Kalender** | `list_calendars`, `get/create/update/remove_calendar_event` |
+| **Camera** | `get_camera_image` |
 | **Dashboards** | `list/get/save/create_dashboard` |
 | **Helpers** | `list/create/update/delete_helper` (input_*, counter, timer, schedule) |
+| **Groepen** | `list/create/update/remove_group` |
 | **Areas & floors** | `list/create/update/delete_area`, `list/create/update/delete_floor` |
-| **Devices & entities** | `list/update_device`, `list_entity_registry`, `update_entity` |
-| **Labels, personen, zones** | `list/create/delete_label`, `list_persons`, `list/create_zone` |
+| **Devices & entities** | `list/update/remove_device`, `list_entity_registry`, `update/remove_entity`, `get/set_entity_exposure` |
+| **Labels, personen, zones** | `list/get/create/update/delete_label`, `list/create/update/remove_person`, `list/get/create/update/delete_zone` |
 | **Integraties** | `list/reload/delete_config_entry` |
 | **Add-on-beheer** (HA OS) | `list_addons`, `list_available_addons`, `get_addon_info/stats/changelog/logs`, `install_addon`, `uninstall_addon`, `set_addon_options`, `control_addon` (start/stop/restart/update/rebuild) |
 | **Back-ups & rollback** | `list/create/restore/delete_backup`, `list_file_snapshots`, `restore_config_file` |
@@ -125,7 +141,8 @@ bestandsrechten, en geeft per onderdeel een ✅/⚠️/❌ met tips:
 | **MQTT & energie** | `mqtt_publish`, `get_energy_prefs`, `save_energy_prefs` |
 | **Meldingen & updates** | `list/create/dismiss_notification`, `notify`, `list_updates`, `install_update` (met back-up) |
 | **Templates & data** | `render_template`, `get_history`, `get_logbook`, `get_statistics` |
-| **YAML-bestanden** | `list/read/write/delete_config_file` (met automatische snapshots) |
+| **YAML-bestanden** | `list/read/write/delete_config_file`, `set_yaml_key` (met snapshots) |
+| **Discovery & MCP** | `search_tools`, `call_read_tool`, `call_write_tool`, `call_delete_tool` |
 
 ---
 
@@ -207,8 +224,10 @@ Je geeft veel toegang, dus dit is belangrijk. Zo is het opgezet:
   één klik intrekken (Instellingen → Personen → gebruiker → token verwijderen).
 - **Padbeveiliging.** De bestands-backends houden elk pad **binnen** je
   config-map (geen `../`-ontsnapping).
-- **Read-only / veilige modus.** `HA_READ_ONLY=true` blokkeert centraal álle
-  wijzigende acties (REST én WebSocket).
+- **Read-only / veilige modus.** `HA_READ_ONLY=true` blokkeert centraal acties
+  die apparaten, dashboards, integraties of YAML-bestanden wijzigen. De
+  onschuldige status-heartbeat naar Claude Link blijft toegestaan, zodat je in
+  Home Assistant nog steeds ziet of de koppeling leeft.
 - **Bevestiging + rollback** voor alles wat impact heeft (zie *Fool-proof* hierboven).
 
 > Een token intrekken? Verwijder het in Home Assistant bij je gebruiker → tabblad

@@ -53,6 +53,13 @@ class HAClient:
         resp = await self._http.get(path, params=params)
         return self._handle(resp)
 
+    async def rest_get_bytes(self, path: str, params: dict | None = None) -> bytes:
+        """GET raw bytes (for binary responses like camera snapshots)."""
+        resp = await self._http.get(path, params=params)
+        if resp.status_code >= 400:
+            raise HAError(f"HTTP {resp.status_code} for {resp.request.url}: {resp.text}")
+        return resp.content
+
     async def rest_post(self, path: str, json_body: Any | None = None, *, write: bool = True) -> Any:
         if write:
             self._guard_write(f"POST {path}")

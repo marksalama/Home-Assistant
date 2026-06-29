@@ -51,8 +51,10 @@ async def get_logbook(entity_id: str | None = None, start_time: str | None = Non
 
 @mcp.tool()
 async def get_error_log() -> str:
-    """Return the Home Assistant error log (home-assistant.log)."""
-    return _dump(await client.rest_get("/error_log"))
+    """Return recent Home Assistant error log entries via the
+    ``system_log/list`` WebSocket command. Each entry includes name, message,
+    level, source, timestamp, exception, count and first_occurred."""
+    return _dump(await client.ws_command({"type": "system_log/list"}))
 
 
 @mcp.tool()

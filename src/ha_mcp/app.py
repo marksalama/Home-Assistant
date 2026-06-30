@@ -24,6 +24,8 @@ DISCOVERY (be token-efficient):
 - Use get_overview for a one-call summary of the entire installation.
 - Use fuzzy_search to find entities by name, area, or label (better than
   listing everything and filtering yourself).
+- Use get_skill_guide for bundled best-practice guides and
+  get_mcp_install_options / install_mcp_tools to configure extra clients.
 - list_entities(domain=..., search=..., fields=...) supports field projection
   to reduce token usage — pass fields="entity_id,state" for compact results.
 - For one entity's full picture use get_state (with attribute_keys= to project),
@@ -50,6 +52,13 @@ CALENDAR & TODO:
 - list_calendars / get_calendar_events for reading calendar events.
 - create/update/remove_calendar_event for managing events.
 - list_todo_lists / get_todo_items / add_todo_item for to-do lists.
+
+THEMES, HACS & SUPPORT:
+- list_themes / manage_theme(list,set,reload) for frontend theme management.
+- get_hacs_info is read-only HACS search/status; use the HACS UI for mutating
+  install/update/remove until that command contract is verified.
+- report_issue creates a reviewable GitHub issue URL with diagnostics; it does
+  not post anything automatically.
 
 YAML EDITING (safe & reversible):
 - read_config_file before write_config_file. Writes auto-snapshot the previous

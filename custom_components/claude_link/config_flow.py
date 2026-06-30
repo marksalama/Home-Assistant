@@ -11,8 +11,12 @@ from homeassistant.config_entries import (
     OptionsFlow,
 )
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import ConfigFlowResult
 from homeassistant.helpers import config_validation as cv
+
+try:
+    from homeassistant.config_entries import ConfigFlowResult
+except ImportError:  # pragma: no cover - compatibility with older HA versions
+    from homeassistant.data_entry_flow import FlowResult as ConfigFlowResult
 
 from .const import (
     CONF_OFFLINE_AFTER,

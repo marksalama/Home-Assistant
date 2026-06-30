@@ -74,6 +74,7 @@ class Settings:
     http_host: str
     http_port: int
     http_token: str | None
+    builtin_mcp_url: str | None
 
     @property
     def ws_url(self) -> str:
@@ -126,4 +127,5 @@ def load_settings() -> Settings:
         http_host=os.environ.get("HA_HOST", "127.0.0.1").strip(),
         http_port=int(os.environ.get("HA_PORT", "8765")),
         http_token=os.environ.get("HA_HTTP_TOKEN", "").strip() or None,
+        builtin_mcp_url=os.environ.get("HA_BUILTIN_MCP_URL", "").strip() or None,
     )

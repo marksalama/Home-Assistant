@@ -48,6 +48,11 @@ _READ_TOOLS = {
     "get_overview", "fuzzy_search",
     "get_entity_exposure",
     "diagnose_entity",
+    "list_themes",
+    "get_mcp_install_options",
+    "report_issue",
+    "get_skill_guide",
+    "get_hacs_info",
 }
 
 _DELETE_TOOLS = {

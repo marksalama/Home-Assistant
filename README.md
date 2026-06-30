@@ -1,6 +1,6 @@
-# Home Assistant ↔ Claude Code
+# Home Assistant ↔ Coding Agents
 
-Geef **Claude Code** zo veel mogelijk controle over je **Home Assistant** —
+Geef **Coding Agents** zo veel mogelijk controle over je **Home Assistant** —
 uitlezen, bedienen én aanpassen — met een visuele, gebruiksvriendelijke kant
 ín Home Assistant zelf.
 
@@ -8,11 +8,15 @@ Dit project bestaat uit **drie onderdelen**:
 
 | Onderdeel | Wat het doet | Waar het draait |
 |-----------|--------------|-----------------|
-| 🧠 **MCP-server** | 141 tools waarmee Claude je HA bestuurt, configureert, beheert en debugt (REST + WebSocket API + ruwe YAML-bestanden) | Op je computer, naast Claude Code |
+| 🧠 **MCP-server** | 148+ tools waarmee Coding agents je HA besturen, configureren, beheren en debuggen (REST + WebSocket API + ruwe YAML-bestanden) | Op je computer, naast je favoriete coding agent, of als HA OS add-on |
 | 🏠 **Claude Link** (integratie) | Visuele status-tegels + automatisch dashboard in Home Assistant, installeerbaar via **HACS** | In Home Assistant |
 | ✨ **Setup-wizard** | Zet alles automatisch op: verbinding testen, koppelen aan je AI-client, dashboard aanmaken | Eén commando |
 
 > Geschikt voor **HA 2026.6+** · **HA OS / Supervised / Container / Core** · 9 AI-clients ondersteund.
+
+Nieuw in deze fase: extra setup-tools, themabeheer, HACS-inzicht,
+issue-reporting, bundled skill guides, HA OS add-on packaging, dev-channel
+releases en optionele combined mode met HA's eigen `/api/mcp`.
 
 ---
 
@@ -109,6 +113,9 @@ De setup-wizard kan de MCP-server automatisch koppelen aan de volgende clients:
 - "Importeer een blueprint van de community forum."
 - "Voeg een afspraak toe aan mijn agenda."
 - "Zet alle lichten uit in de woonkamer, keuken en hal in één keer."
+- "Installeer de MCP-koppeling ook voor VSCode."
+- "Zet het Home Assistant thema op default dark."
+- "Maak een GitHub issue met de relevante foutlogs."
 
 ### Kant-en-klare opdrachten (slash-commando's)
 
@@ -153,7 +160,7 @@ Wil je ook de veilige read-tools tegen je echte HA API controleren, gebruik dan:
 
 ---
 
-## 🧰 Wat de MCP-server allemaal kan (141 tools)
+## 🧰 Wat de MCP-server allemaal kan (148+ tools)
 
 | Categorie | Tools |
 |-----------|-------|
@@ -178,6 +185,9 @@ Wil je ook de veilige read-tools tegen je echte HA API controleren, gebruik dan:
 | **Back-ups & rollback** | `list/create/restore/delete_backup`, `list_file_snapshots`, `restore_config_file` |
 | **Debug & onderhoud** | `get_core/supervisor/host_logs`, `get_error_log` (via `system_log`), `set_log_level`, `set_default_log_level`, `diagnose_entity`, `purge_database`, `system_health` |
 | **Systeem** | `get_config`, `check_config`, `restart_home_assistant`, `reload_domain`, `update_supervisor`, `reboot_host` |
+| **Thema's** | `list_themes`, `manage_theme` (`list`, `set`, `reload`) |
+| **HACS** | `get_hacs_info` (veilig zoeken/lezen van HACS repositories) |
+| **Setup & support** | `get_mcp_install_options`, `install_mcp_tools`, `report_issue`, `get_skill_guide` |
 | **MQTT & energie** | `mqtt_publish`, `get_energy_prefs`, `save_energy_prefs` |
 | **Meldingen & updates** | `list/create/dismiss_notification`, `notify`, `list_updates`, `install_update` (met back-up) |
 | **Templates & data** | `render_template`, `get_history`, `get_logbook`, `get_statistics` |
@@ -195,12 +205,14 @@ zonder een tool-call — handig voor context:
 | `homeassistant://services` | Alle beschikbare services per domein |
 | `homeassistant://areas` | Alle areas en floors |
 | `homeassistant://integrations` | Alle config entries met hun state |
+| `homeassistant://assist/context-snapshot` | Proxy naar HA's built-in MCP Assist context snapshot wanneer `HA_BUILTIN_MCP_URL` is ingesteld |
+| `skill://api-reference` e.a. | Bundled best-practice guides voor API-keuze, setup, diagnose, dashboards en Claude Link |
 
 ---
 
 ## 🔎 Tool-discovery (voor kleinere / lokale LLM's)
 
-Met 141 tools kan de tool-catalogus kleinere modellen (Claude Haiku, Gemini,
+Met 148+ tools kan de tool-catalogus kleinere modellen (Claude Haiku, Gemini,
 ChatGPT, lokale Ollama-modellen) overweldigen. Zet **search-based discovery**
 aan om alleen de benodigde tools in context te laden:
 
@@ -265,6 +277,26 @@ De server ondersteunt drie transportmodi:
 De transportmodus kan ook via env-var worden ingesteld: `HA_TRANSPORT=http`,
 `HA_HOST=127.0.0.1`, `HA_PORT=8765`. Zet voor HTTP/SSE buiten je eigen machine
 ook `HA_HTTP_TOKEN` en configureer je client met `Authorization: Bearer <token>`.
+
+### Combined mode met HA's ingebouwde MCP
+
+Home Assistant heeft ook een eigen MCP-endpoint op `/api/mcp` voor Assist-scoped
+context. Deze server blijft de volledige configuratie/debug-laag, maar kan die
+Assist-context als resource doorgeven:
+
+```bash
+HA_BUILTIN_MCP_URL=https://jouw-ha-url/api/mcp
+```
+
+Daarna is `homeassistant://assist/context-snapshot` beschikbaar in dezelfde
+MCP-sessie.
+
+### HA OS add-on
+
+Deze repo bevat ook een eerste HA OS/Supervised add-on in
+[`homeassistant-addon/`](./homeassistant-addon). Die draait de MCP-server binnen
+Home Assistant met HTTP transport. Zet in de add-on opties altijd een lang
+`http_token` en gebruik in je client `Authorization: Bearer <token>`.
 
 > Clients die alleen stdio ondersteunen (zoals Claude Desktop) kunnen
 > `mcp-proxy` gebruiken als gateway naar een HTTP-server. Zie
@@ -347,6 +379,7 @@ Configureer je client met de URL `http://jouw-pc:8765/mcp`.
 | `HA_HOST` | `127.0.0.1` | Bind-adres voor HTTP/SSE |
 | `HA_PORT` | `8765` | Bind-poort voor HTTP/SSE |
 | `HA_HTTP_TOKEN` | — | Optionele Bearer-tokenbeveiliging voor HTTP/SSE |
+| `HA_BUILTIN_MCP_URL` | — | Optionele proxy naar HA's eigen `/api/mcp` combined mode |
 
 Zie [`.env.example`](./.env.example) voor gedetailleerde uitleg per variabele.
 
@@ -437,4 +470,4 @@ mcp.example.json                   # voorbeeld-configuratie (stdio + HTTP)
 
 ## Licentie
 
-MIT
+Mark Salama

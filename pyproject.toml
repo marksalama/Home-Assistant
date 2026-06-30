@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "home-assistant-mcp"
-version = "0.1.0"
+version = "0.3.0"
 description = "MCP server that gives Claude Code broad control over a Home Assistant installation (REST + WebSocket API and raw YAML files)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,6 +31,9 @@ ha-mcp-doctor = "ha_mcp.doctor:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ha_mcp"]
+include = [
+    "src/ha_mcp/skill_guides/*.md",
+]
 
 [tool.pytest.ini_options]
 markers = [

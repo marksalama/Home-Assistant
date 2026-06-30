@@ -29,6 +29,28 @@ from .dashboard_template import build_dashboard
 from .ha_client import HAClient
 
 
+CLAUDE_LINK_SUFFIX_MAP = {
+    "connected": "_connected",
+    "last_activity": "_last_activity",
+    "tool_calls": "_tool_calls",
+    "heartbeat_age": "_heartbeat_age",
+    "source": "_source",
+    "calls_per_minute": "_calls_per_minute",
+    "read_only": "_read_only",
+    "http_auth": "_http_auth",
+    "file_access_enabled": "_file_access_enabled",
+    "file_access": "_files_backend",
+    "transport": "_transport",
+    "mcp_version": "_mcp_version",
+    "tools_total": "_tools_total",
+    "disabled_tools": "_disabled_tools",
+    "enabled_tools": "_enabled_tools",
+    "create_backup": "_create_backup",
+    "reset_stats": "_reset_stats",
+    "reload_integration": "_reload_integration",
+}
+
+
 def _ask(prompt: str, default: str | None = None) -> str:
     suffix = f" [{default}]" if default else ""
     value = input(f"{prompt}{suffix}: ").strip()
@@ -94,6 +116,13 @@ def _make_settings(values: dict) -> Settings:
         snapshots_enabled=values.get("HA_SNAPSHOTS", "true").lower() != "false",
         snapshot_dir=values.get("HA_SNAPSHOT_DIR", str(Path.home() / ".ha-mcp" / "snapshots")),
         auto_backup_before_update=values.get("HA_AUTO_BACKUP_BEFORE_UPDATE", "false").lower() == "true",
+        disabled_tools={t.strip() for t in values.get("HA_DISABLED_TOOLS", "").split(",") if t.strip()},
+        enabled_tools={t.strip() for t in values.get("HA_ENABLED_TOOLS", "").split(",") if t.strip()} or None,
+        transport=values.get("HA_TRANSPORT", "stdio"),
+        http_host=values.get("HA_HOST", "127.0.0.1"),
+        http_port=int(values.get("HA_PORT", "8765")),
+        http_token=values.get("HA_HTTP_TOKEN") or None,
+        builtin_mcp_url=values.get("HA_BUILTIN_MCP_URL") or None,
     )
 
 
@@ -108,6 +137,19 @@ async def _test_connection(settings: Settings) -> dict:
 async def _create_dashboard(settings: Settings) -> None:
     client = HAClient(settings)
     try:
+        entity_ids: dict[str, str] = {}
+        try:
+            registry = await client.ws_command({"type": "config/entity_registry/list"})
+            for entry in registry if isinstance(registry, list) else []:
+                if entry.get("platform") != "claude_link":
+                    continue
+                unique_id = str(entry.get("unique_id") or "")
+                for key, suffix in CLAUDE_LINK_SUFFIX_MAP.items():
+                    if unique_id.endswith(suffix):
+                        entity_ids[key] = entry.get("entity_id")
+        except Exception:
+            pass
+
         existing = await client.ws_command({"type": "lovelace/dashboards/list"})
         if not any(d.get("url_path") == "claude-link" for d in existing):
             await client.ws_command(
@@ -121,11 +163,11 @@ async def _create_dashboard(settings: Settings) -> None:
                 }
             )
         await client.ws_command(
-            {
-                "type": "lovelace/config/save",
-                "url_path": "claude-link",
-                "config": build_dashboard(),
-            }
+                {
+                    "type": "lovelace/config/save",
+                    "url_path": "claude-link",
+                    "config": build_dashboard(entity_ids),
+                }
         )
     finally:
         await client.aclose()
@@ -173,6 +215,8 @@ def _write_env(values: dict, path: Path) -> None:
         "HA_CONFIG_DIR", "HA_SSH_HOST", "HA_SSH_PORT", "HA_SSH_USER",
         "HA_SSH_PASSWORD", "HA_SSH_KEY_FILE", "HA_SSH_CONFIG_DIR",
         "HA_READ_ONLY", "HA_SNAPSHOTS", "HA_AUTO_BACKUP_BEFORE_UPDATE",
+        "HA_TRANSPORT", "HA_HOST", "HA_PORT", "HA_HTTP_TOKEN",
+        "HA_BUILTIN_MCP_URL",
     ):
         if values.get(key):
             lines.append(f"{key}={values[key]}")

@@ -1063,3 +1063,38 @@ De handmatige probe-scripts (§13.2) moeten worden geautomatiseerd:
 3. **P2.4** Tool-security-policies.
 4. **P2.5** Agent Skills resources.
 5. **P2.6** HACS tools na live command-probe.
+
+---
+
+## 17. Implementatiestatus P2/P3 afronding (30 jun 2026)
+
+### 17.1 Live Claude Link fix
+
+Na HA-herstart gaf `claude_link.config_flow` een importfout:
+`ConfigFlowResult` bestaat in HA 2026.6.4 niet meer op
+`homeassistant.data_entry_flow`. De import is compatibel gemaakt:
+eerst `homeassistant.config_entries.ConfigFlowResult`, met fallback naar
+oudere `FlowResult`. De live `/config/custom_components/claude_link/config_flow.py`
+is via SSH bijgewerkt en de config entry is succesvol herladen naar `loaded`.
+
+### 17.2 Extra afgeronde items
+
+| Item | Status |
+|------|--------|
+| **P2.2** HA OS add-on-packaging | Eerste add-onbasis toegevoegd: `repository.yaml` + `homeassistant-addon/` met HTTP transport, Supervisor token, `/config` mapping en opties |
+| **P2.5** Agent Skills | Voltooid: `skill://...` resources + `get_skill_guide` |
+| **P2.6** HACS tools | Veilig read-only HACS-inzicht toegevoegd via bewezen `hacs/repositories/list` |
+| **P3 Thema-beheer** | Voltooid: `list_themes` en `manage_theme(list/set/reload)` |
+| **P3 MCP-tools installer** | Voltooid: `get_mcp_install_options` en `install_mcp_tools` als wizard-aanvulling |
+| **P3 Issue reporter** | Voltooid: `report_issue` maakt reviewbare GitHub issue URL met context |
+| **P3 Dev-channel** | Voltooid: `.github/workflows/dev-release.yml` bouwt `.devN` artifacts en prereleases |
+| **P3 built-in `/api/mcp` synergie** | Voltooid: `HA_BUILTIN_MCP_URL` en resource `homeassistant://assist/context-snapshot` |
+
+### 17.3 Bewust nog open
+
+| Item | Reden |
+|------|-------|
+| **OAuth (IndieAuth)** | Blijft apart groot security/auth traject; HTTP Bearer-token is nu de eenvoudige veilige route |
+| **Tool-security-policies** | Niet nodig voor basisgebruik; huidige `HA_READ_ONLY`, per-tool filters en confirm-flags blijven primaire veiligheid |
+| **Webhook-proxy add-on** | Pas veilig na praktijkvalidatie van de basis HA OS add-on |
+| **HACS mutaties** | Niet geïmplementeerd zonder live bewezen install/update/remove command-contract; read-only HACS search is wel klaar |

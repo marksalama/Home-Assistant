@@ -8,6 +8,7 @@ your secrets file, and prints clear ✅/⚠️/❌ results with hints.
 from __future__ import annotations
 
 import asyncio
+import argparse
 import os
 import stat
 import sys
@@ -30,7 +31,32 @@ def _configure_output() -> None:
         pass
 
 
-async def _run() -> int:
+async def _verify_read_contracts(client: HAClient) -> int:
+    """Probe safe read-only API contracts used by the high-value read tools."""
+    problems = 0
+    checks = [
+        ("get_config", client.rest_get("/config")),
+        ("list_entities", client.rest_get("/states")),
+        ("list_services", client.rest_get("/services")),
+        ("list_areas", client.ws_command({"type": "config/area_registry/list"})),
+        ("list_devices", client.ws_command({"type": "config/device_registry/list"})),
+        ("list_entity_registry", client.ws_command({"type": "config/entity_registry/list"})),
+        ("list_config_entries", client.ws_command({"type": "config_entries/get"})),
+        ("get_error_log", client.ws_command({"type": "system_log/list"})),
+    ]
+    _line("ℹ️", "Extra read-tool verificatie gestart (--verify-tools).")
+    for name, check in checks:
+        try:
+            result = await check
+            count = len(result) if isinstance(result, list) else "ok"
+            _line("✅", f"{name} werkt ({count}).")
+        except Exception as exc:  # noqa: BLE001
+            problems += 1
+            _line("⚠️", f"{name} faalt: {exc}")
+    return problems
+
+
+async def _run(verify_tools: bool = False) -> int:
     problems = 0
     try:
         settings = load_settings()
@@ -122,6 +148,8 @@ async def _run() -> int:
                     )
             elif "HTTP 404" in str(exc):
                 _line("ℹ️", "Supervisor API niet gevonden; dit is normaal bij HA Container/Core.")
+        if verify_tools:
+            problems += await _verify_read_contracts(client)
     finally:
         await client.aclose()
 
@@ -148,7 +176,14 @@ async def _run() -> int:
 
 def main() -> None:
     _configure_output()
-    raise SystemExit(asyncio.run(_run()))
+    parser = argparse.ArgumentParser(description="Check the Home Assistant MCP setup")
+    parser.add_argument(
+        "--verify-tools",
+        action="store_true",
+        help="Also probe safe read-only tool API contracts against Home Assistant.",
+    )
+    args = parser.parse_args()
+    raise SystemExit(asyncio.run(_run(verify_tools=args.verify_tools)))
 
 
 if __name__ == "__main__":

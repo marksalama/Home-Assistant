@@ -5,6 +5,7 @@ small helpers. Tool modules import from here and register themselves.
 from __future__ import annotations
 
 import asyncio
+from importlib.metadata import PackageNotFoundError, version
 import json
 from typing import Any
 
@@ -27,7 +28,8 @@ DISCOVERY (be token-efficient):
   to reduce token usage — pass fields="entity_id,state" for compact results.
 - For one entity's full picture use get_state (with attribute_keys= to project),
   or diagnose_entity for debugging (state + registry + device in one call).
-- list_areas / list_devices / list_entity_registry / list_labels for structure.
+- list_areas / list_devices(fields=...) / list_entity_registry(fields=...) /
+  list_config_entries(fields=...) / list_labels for structure.
 
 CONTROLLING DEVICES:
 - Use call_service(domain, service, data) for actions. Target with entity_id,
@@ -66,9 +68,10 @@ SAFETY:
 HA OS ONLY: add-on and backup tools (list_addons, control_addon, *_backup,
 host/supervisor tools) only work on HA OS / Supervised; they error otherwise.
 
-DEBUGGING: get_error_log (system_log entries), get_core_logs/get_supervisor_logs/
-get_addon_logs, set_log_level(integration, "debug"), system_health,
-list_automation_traces + get_automation_trace.
+DEBUGGING: get_error_log returns structured system_log entries (name, message,
+level, source, timestamp, exception, count, first_occurred). Use it with
+get_core_logs/get_supervisor_logs/get_addon_logs, set_log_level(integration,
+"debug"), system_health, list_automation_traces + get_automation_trace.
 
 ENTITY EXPOSURE: get_entity_exposure / set_entity_exposure to control which
 entities are exposed to Assist (conversation), Alexa (cloud.alexa), or
@@ -77,7 +80,12 @@ Google Assistant (cloud.google_assistant).
 
 settings = load_settings()
 client = HAClient(settings)
-mcp = FastMCP("home-assistant", instructions=INSTRUCTIONS)
+mcp = FastMCP(
+    "home-assistant",
+    instructions=INSTRUCTIONS,
+    host=settings.http_host,
+    port=settings.http_port,
+)
 
 # Local snapshot store for reversible file edits (None if disabled).
 snapshots = SnapshotStore(settings.snapshot_dir) if settings.snapshots_enabled else None
@@ -111,7 +119,7 @@ async def _heartbeat_loop() -> None:
         try:
             await client.rest_post(
                 "/services/claude_link/report",
-                {"tool_calls": TOOL_CALLS, "source": "claude-code"},
+                _heartbeat_payload(),
                 write=False,
             )
         except Exception:
@@ -136,6 +144,124 @@ def _dump(data: Any) -> str:
     TOOL_CALLS += 1
     _ensure_heartbeat()
     return json.dumps(data, indent=2, ensure_ascii=False, default=str)
+
+
+def _package_version() -> str:
+    try:
+        return version("home-assistant-mcp")
+    except PackageNotFoundError:
+        return "dev"
+
+
+def _heartbeat_payload() -> dict[str, Any]:
+    enabled_count = len(settings.enabled_tools) if settings.enabled_tools is not None else None
+    return {
+        "tool_calls": TOOL_CALLS,
+        "source": "claude-code",
+        "transport": settings.transport,
+        "read_only": settings.read_only,
+        "files_backend": settings.files_backend,
+        "tools_total": len(mcp._tool_manager._tools),
+        "disabled_tools": len(settings.disabled_tools),
+        "enabled_tools": enabled_count,
+        "http_auth_enabled": bool(settings.http_token),
+        "heartbeat_interval": 30,
+        "mcp_version": _package_version(),
+    }
+
+
+def _parse_fields(fields: str | None) -> set[str] | None:
+    if not fields:
+        return None
+    return {field.strip() for field in fields.split(",") if field.strip()}
+
+
+def _project_dict(data: dict[str, Any], fields: str | None) -> dict[str, Any]:
+    field_set = _parse_fields(fields)
+    if field_set is None:
+        return data
+    return {key: value for key, value in data.items() if key in field_set}
+
+
+async def _collect_overview() -> dict[str, Any]:
+    """Collect the shared installation overview for tools and MCP resources."""
+    config, states, config_entries = await asyncio.gather(
+        client.rest_get("/config"),
+        client.rest_get("/states"),
+        client.ws_command({"type": "config_entries/get"}),
+    )
+
+    entities_by_domain: dict[str, int] = {}
+    automation_count = 0
+    automation_enabled = 0
+    script_count = 0
+    scene_count = 0
+    update_pending = 0
+    update_entities: list[dict[str, Any]] = []
+    for state in states if isinstance(states, list) else []:
+        entity_id: str = state["entity_id"]
+        domain = entity_id.partition(".")[0]
+        entities_by_domain[domain] = entities_by_domain.get(domain, 0) + 1
+        if domain == "automation":
+            automation_count += 1
+            if state.get("state") == "on":
+                automation_enabled += 1
+        elif domain == "script":
+            script_count += 1
+        elif domain == "scene":
+            scene_count += 1
+        elif domain == "update" and state.get("state") == "on":
+            attrs = state.get("attributes", {})
+            update_entities.append(
+                {
+                    "entity_id": entity_id,
+                    "title": attrs.get("title") or attrs.get("friendly_name", ""),
+                    "installed_version": attrs.get("installed_version"),
+                    "latest_version": attrs.get("latest_version"),
+                }
+            )
+            update_pending += 1
+
+    error_count = 0
+    try:
+        errors = await client.ws_command({"type": "system_log/list"})
+        error_count = len(errors) if isinstance(errors, list) else 0
+    except Exception:
+        pass
+
+    areas: list[dict[str, Any]] = []
+    floors: list[dict[str, Any]] = []
+    try:
+        areas = await client.ws_command({"type": "config/area_registry/list"})
+    except Exception:
+        pass
+    try:
+        floors = await client.ws_command({"type": "config/floor_registry/list"})
+    except Exception:
+        pass
+
+    entries = config_entries if isinstance(config_entries, list) else []
+    integration_failed = sum(
+        1 for entry in entries if entry.get("state") in {"not_loaded", "setup_error", "setup_retry"}
+    )
+
+    return {
+        "version": config.get("version") if isinstance(config, dict) else None,
+        "location_name": config.get("location_name") if isinstance(config, dict) else None,
+        "unit_system": config.get("unit_system", {}).get("temperature") if isinstance(config, dict) else None,
+        "entities_by_domain": dict(sorted(entities_by_domain.items())),
+        "automation_count": automation_count,
+        "automation_enabled": automation_enabled,
+        "script_count": script_count,
+        "scene_count": scene_count,
+        "pending_updates": update_pending,
+        "update_entities": update_entities,
+        "errors_last_hour": error_count,
+        "integrations": len(entries),
+        "integrations_failed": integration_failed,
+        "areas": len(areas),
+        "floors": len(floors),
+    }
 
 
 def _files():

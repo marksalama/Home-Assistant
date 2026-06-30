@@ -61,8 +61,12 @@ computer installeren.
 
 Je krijgt nu in Home Assistant:
 
-- een apparaat **Claude Link** met tegels: *Verbonden*, *Laatste activiteit*, *Aantal acties* en een knop *Maak back-up*;
-- een **dashboard** in de zijbalk dat je de status laat zien.
+- een apparaat **Claude Link** met tegels voor verbinding, activiteit, transport,
+  read-only status, HTTP-auth, bestandstoegang, toolcatalogus en MCP-versie;
+- knoppen voor **Maak back-up**, **Reset zichtbare statistieken** en
+  **Herlaad integratie**;
+- een **dashboard** in de zijbalk met live status, veiligheid, activiteit en
+  snelle acties.
 
 Klaar! 🎉
 
@@ -139,6 +143,14 @@ bestandsrechten, en geeft per onderdeel een ✅/⚠️/❌ met tips:
 ./.venv/bin/ha-mcp-doctor
 ```
 
+Wil je ook de veilige read-tools tegen je echte HA API controleren, gebruik dan:
+
+```bash
+.\.venv\Scripts\ha-mcp-doctor.exe --verify-tools
+# macOS / Linux:
+./.venv/bin/ha-mcp-doctor --verify-tools
+```
+
 ---
 
 ## 🧰 Wat de MCP-server allemaal kan (141 tools)
@@ -159,9 +171,9 @@ bestandsrechten, en geeft per onderdeel een ✅/⚠️/❌ met tips:
 | **Helpers** | `list/create/update/delete_helper` (input_\*, counter, timer, schedule) |
 | **Groepen** | `list/create/update/remove_group` |
 | **Areas & floors** | `list/create/update/delete_area`, `list/create/update/delete_floor` |
-| **Devices & entities** | `list/update/remove_device`, `list_entity_registry`, `update/remove_entity`, `get/set_entity_exposure` |
+| **Devices & entities** | `list/update/remove_device`, `list_entity_registry` (met `fields=`), `update/remove_entity`, `get/set_entity_exposure` |
 | **Labels, personen, zones** | `list/get/create/update/delete_label`, `list/create/update/remove_person`, `list/get/create/update/delete_zone` |
-| **Integraties** | `list/reload/delete_config_entry` |
+| **Integraties** | `list_config_entries` (met `fields=`), `reload/delete_config_entry` |
 | **Add-on-beheer** (HA OS) | `list_addons`, `list_available_addons`, `get_addon_info/stats/changelog/logs`, `install_addon`, `uninstall_addon`, `set_addon_options`, `control_addon` (start/stop/restart/update/rebuild) |
 | **Back-ups & rollback** | `list/create/restore/delete_backup`, `list_file_snapshots`, `restore_config_file` |
 | **Debug & onderhoud** | `get_core/supervisor/host_logs`, `get_error_log` (via `system_log`), `set_log_level`, `set_default_log_level`, `diagnose_entity`, `purge_database`, `system_health` |
@@ -221,6 +233,8 @@ Veiligheid zit standaard ingebouwd, zodat je rustig kunt experimenteren:
   wijziging terug"*) zet het terug via `restore_config_file`.
 - **`set_yaml_key` met validatie** — voeg, vervang of verwijder een enkele
   top-level YAML-key met automatische `check_config`-validatie ná de wijziging.
+  Installeer `home-assistant-mcp[yaml]` voor comment-preserving YAML-edits via
+  `ruamel.yaml`; zonder die extra gebruikt de tool een eenvoudige fallback.
 - **Back-up & restore** — laat Claude vóór grote ingrepen een volledige back-up
   maken (`create_backup`) en desnoods de hele installatie terugzetten
   (`restore_backup`). Stel `HA_AUTO_BACKUP_BEFORE_UPDATE=true` in om automatisch
@@ -249,7 +263,8 @@ De server ondersteunt drie transportmodi:
 | **SSE** (Server-Sent Events) | Clients die SSE verlangen i.p.v. Streamable HTTP | `ha-mcp --transport sse --host 0.0.0.0 --port 8765` |
 
 De transportmodus kan ook via env-var worden ingesteld: `HA_TRANSPORT=http`,
-`HA_HOST=127.0.0.1`, `HA_PORT=8765`.
+`HA_HOST=127.0.0.1`, `HA_PORT=8765`. Zet voor HTTP/SSE buiten je eigen machine
+ook `HA_HTTP_TOKEN` en configureer je client met `Authorization: Bearer <token>`.
 
 > Clients die alleen stdio ondersteunen (zoals Claude Desktop) kunnen
 > `mcp-proxy` gebruiken als gateway naar een HTTP-server. Zie
@@ -274,7 +289,7 @@ Installeer de add-on **Advanced SSH & Web Terminal**, zet een `password` en
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[ssh]"   # of: pip install -e .  (zonder SSH)
+pip install -e ".[ssh,yaml]"   # of: pip install -e .  (zonder SSH/YAML-extra)
 ```
 
 ### 4. Configureren
@@ -331,6 +346,7 @@ Configureer je client met de URL `http://jouw-pc:8765/mcp`.
 | `HA_TRANSPORT` | `stdio` | Transport: `stdio`, `sse` of `http` |
 | `HA_HOST` | `127.0.0.1` | Bind-adres voor HTTP/SSE |
 | `HA_PORT` | `8765` | Bind-poort voor HTTP/SSE |
+| `HA_HTTP_TOKEN` | — | Optionele Bearer-tokenbeveiliging voor HTTP/SSE |
 
 Zie [`.env.example`](./.env.example) voor gedetailleerde uitleg per variabele.
 

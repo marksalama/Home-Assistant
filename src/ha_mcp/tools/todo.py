@@ -14,15 +14,38 @@ from ..app import _dump, client, mcp
 from ..ha_client import HAError
 
 
+async def _list_todo_entities() -> list[dict[str, Any]]:
+    states = await client.rest_get("/states")
+    return [
+        {
+            "entity_id": state["entity_id"],
+            "state": state["state"],
+            "friendly_name": state.get("attributes", {}).get("friendly_name", ""),
+        }
+        for state in states
+        if state["entity_id"].startswith("todo.")
+    ]
+
+
+async def _ensure_todo_entity(entity_id: str) -> None:
+    todos = await _list_todo_entities()
+    if not todos:
+        raise HAError(
+            "The Home Assistant todo integration is not installed, or no todo list "
+            "entities exist. Add a Todo List integration in Home Assistant first."
+        )
+    known = {todo["entity_id"] for todo in todos}
+    if entity_id not in known:
+        raise HAError(
+            f"{entity_id!r} is not a known todo entity. Available todo lists: "
+            + ", ".join(sorted(known))
+        )
+
+
 @mcp.tool()
 async def list_todo_lists() -> str:
     """List all to-do list entities (``todo.*`` domain)."""
-    states = await client.rest_get("/states")
-    todos = [
-        {"entity_id": s["entity_id"], "state": s["state"],
-         "friendly_name": s.get("attributes", {}).get("friendly_name", "")}
-        for s in states if s["entity_id"].startswith("todo.")
-    ]
+    todos = await _list_todo_entities()
     return _dump({"count": len(todos), "todo_lists": todos})
 
 
@@ -37,6 +60,7 @@ async def get_todo_items(
         entity_id: e.g. "todo.shopping_list".
         status: Filter by "needs_action" or "completed". Omit for all.
     """
+    await _ensure_todo_entity(entity_id)
     data: dict[str, Any] = {"entity_id": entity_id}
     if status:
         data["status"] = status
@@ -63,6 +87,7 @@ async def add_todo_item(
         item["due"] = due
     if description:
         item["description"] = description
+    await _ensure_todo_entity(entity_id)
     return _dump(await client.rest_post(
         "/services/todo/add_item", {"entity_id": entity_id, "item": item}))
 
@@ -93,6 +118,7 @@ async def update_todo_item(
         item["description"] = description
     if not item:
         raise HAError("At least one field to update is required.")
+    await _ensure_todo_entity(entity_id)
     return _dump(await client.rest_post(
         "/services/todo/update_item",
         {"entity_id": entity_id, "uid": uid, "item": item}))
@@ -108,5 +134,6 @@ async def remove_todo_item(
     confirm=True."""
     if not confirm:
         raise HAError("Refusing to remove a to-do item without confirm=True.")
+    await _ensure_todo_entity(entity_id)
     return _dump(await client.rest_post(
         "/services/todo/remove_item", {"entity_id": entity_id, "uid": uid}))

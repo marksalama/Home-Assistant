@@ -8,8 +8,11 @@ DATA = "data"
 # How long without a heartbeat before we consider the bridge offline (seconds).
 DEFAULT_OFFLINE_AFTER = 90
 CONF_OFFLINE_AFTER = "offline_after"
+CONF_SHOW_ADVANCED = "show_advanced_entities"
+DEFAULT_SHOW_ADVANCED = True
 
 SERVICE_REPORT = "report"
+SERVICE_RESET_STATS = "reset_stats"
 
 SIGNAL_UPDATE = "claude_link_update"
 

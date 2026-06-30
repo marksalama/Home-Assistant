@@ -21,6 +21,8 @@ dependencies = [
 # Needed only when you use the SSH file backend (HA OS / Supervised via the
 # "Advanced SSH & Web Terminal" add-on). Install with: pip install ".[ssh]"
 ssh = ["paramiko>=3.4"]
+yaml = ["ruamel.yaml>=0.18"]
+test = ["pytest>=8"]
 
 [project.scripts]
 ha-mcp = "ha_mcp.__main__:main"
@@ -29,3 +31,8 @@ ha-mcp-doctor = "ha_mcp.doctor:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ha_mcp"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: live Home Assistant API probes; requires HA_MCP_RUN_INTEGRATION_TESTS=1",
+]

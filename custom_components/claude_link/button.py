@@ -8,13 +8,21 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import DATA, DOMAIN, SERVICE_RESET_STATS
 from .entity import ClaudeLinkEntity
 
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    async_add_entities([ClaudeLinkBackupButton(entry, hass)])
+    data = hass.data[DOMAIN][entry.entry_id][DATA]
+    entities = [
+        ClaudeLinkBackupButton(entry, hass),
+        ClaudeLinkResetStatsButton(entry, hass),
+    ]
+    if data.show_advanced:
+        entities.append(ClaudeLinkReloadButton(entry, hass))
+    async_add_entities(entities)
 
 
 class ClaudeLinkBackupButton(ClaudeLinkEntity, ButtonEntity):
@@ -41,3 +49,31 @@ class ClaudeLinkBackupButton(ClaudeLinkEntity, ButtonEntity):
             await self.hass.services.async_call("backup", "create", blocking=False)
         else:
             raise HomeAssistantError("No Home Assistant backup service is available.")
+
+
+class ClaudeLinkResetStatsButton(ClaudeLinkEntity, ButtonEntity):
+    _attr_name = "Reset visible stats"
+    _attr_icon = "mdi:counter"
+
+    def __init__(self, entry, hass) -> None:
+        super().__init__(entry, hass)
+        self._attr_unique_id = f"{entry.entry_id}_reset_stats"
+
+    async def async_press(self) -> None:
+        await self.hass.services.async_call(
+            DOMAIN,
+            SERVICE_RESET_STATS,
+            blocking=True,
+        )
+
+
+class ClaudeLinkReloadButton(ClaudeLinkEntity, ButtonEntity):
+    _attr_name = "Reload integration"
+    _attr_icon = "mdi:reload"
+
+    def __init__(self, entry, hass) -> None:
+        super().__init__(entry, hass)
+        self._attr_unique_id = f"{entry.entry_id}_reload_integration"
+
+    async def async_press(self) -> None:
+        await self.hass.config_entries.async_reload(self._entry.entry_id)

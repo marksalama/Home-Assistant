@@ -1037,3 +1037,29 @@ De handmatige probe-scripts (§13.2) moeten worden geautomatiseerd:
 ---
 
 *Einde bijgewerkt plan. P0/P1 voltooid en geverifieerd. P2 start met bug-fixes (P2.0) gevolgd door nieuwe features.*
+
+---
+
+## 16. Implementatiestatus P2-start (30 jun 2026)
+
+### 16.1 Voltooid in deze ronde
+
+| Item | Status |
+|------|--------|
+| **P2.0/V1** Centraliseer `get_overview` logica | Voltooid: `_collect_overview()` in `app.py`, hergebruikt door tool en resource |
+| **P2.0/V2** `ruamel.yaml` als `[yaml]` extra | Voltooid: `pyproject.toml` extra + fallback-waarschuwing in `set_yaml_key` |
+| **P2.0/V3** Todo graceful degradation | Voltooid: duidelijke fout bij ontbrekende todo-integratie of onbekende todo-entiteit |
+| **P2.0/V5** Token-projectie uitbreiden | Voltooid: `fields=` op `list_devices`, `list_entity_registry`, `list_config_entries` |
+| **P2.0/V7** HTTP-mode Bearer-token auth | Voltooid: `HA_HTTP_TOKEN` beschermt HTTP/SSE via ASGI middleware; `http` wordt correct gemapt naar `streamable-http` |
+| **P2.0/V8** Batch entity-exposure | Voltooid: `set_entity_exposure(..., assistants=[...])` |
+| **P2.0/V10** Structured error-log documentatie | Voltooid: serverinstructies en prompts bijgewerkt voor `system_log/list` |
+| **P2.7** Test-automatisering start | Voltooid: opt-in `tests/integration/test_ha_api.py` + `ha-mcp-doctor --verify-tools` |
+| **Claude Link uitbreiding** | Voltooid: extra status/veiligheid/configuratie-entiteiten, reset/reload-knoppen, rijker dashboard |
+
+### 16.2 Eerstvolgende open P2-items
+
+1. **P2.1** OAuth (IndieAuth) mode.
+2. **P2.2** HA OS add-on-packaging.
+3. **P2.4** Tool-security-policies.
+4. **P2.5** Agent Skills resources.
+5. **P2.6** HACS tools na live command-probe.

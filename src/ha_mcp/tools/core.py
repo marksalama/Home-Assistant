@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from ..app import _dump, client, mcp
+from ..app import _collect_overview, _dump, _parse_fields, client, mcp
 from ..ha_client import HAError
 
 
@@ -21,7 +21,7 @@ async def list_entities(domain: str | None = None, search: str | None = None,
         fields: Comma-separated field names to include per entity (e.g.
             "entity_id,state"). Saves tokens on large results.
     """
-    field_set = {f.strip() for f in fields.split(",")} if fields else None
+    field_set = _parse_fields(fields)
     states = await client.rest_get("/states")
     result = []
     for s in states:
@@ -107,85 +107,7 @@ async def get_overview() -> str:
     """Return a structured summary of the entire Home Assistant installation:
     version, entity counts per domain, automation/script/scene counts, areas &
     floors, pending updates, config entries, and recent errors."""
-    config, states, config_entries = await asyncio.gather(
-        client.rest_get("/config"),
-        client.rest_get("/states"),
-        client.ws_command({"type": "config_entries/get"}),
-    )
-
-    entities_by_domain: dict[str, int] = {}
-    automation_count = 0
-    automation_enabled = 0
-    script_count = 0
-    scene_count = 0
-    update_pending = 0
-    update_entities: list[dict[str, Any]] = []
-    for s in states:
-        eid: str = s["entity_id"]
-        domain = eid.partition(".")[0]
-        entities_by_domain[domain] = entities_by_domain.get(domain, 0) + 1
-        if domain == "automation":
-            automation_count += 1
-            if s.get("state") == "on":
-                automation_enabled += 1
-        elif domain == "script":
-            script_count += 1
-        elif domain == "scene":
-            scene_count += 1
-        elif domain == "update":
-            if s.get("state") == "on":
-                attrs = s.get("attributes", {})
-                update_entities.append({
-                    "entity_id": eid,
-                    "title": attrs.get("title") or attrs.get("friendly_name", ""),
-                    "installed_version": attrs.get("installed_version"),
-                    "latest_version": attrs.get("latest_version"),
-                })
-                update_pending += 1
-
-    # count error log errors
-    error_count = 0
-    try:
-        errors = await client.ws_command({"type": "system_log/list"})
-        error_count = len(errors) if isinstance(errors, list) else 0
-    except Exception:
-        pass
-
-    # areas & floors (fire-and-forget – graceful if WS fails)
-    areas: list[dict[str, Any]] = []
-    floors: list[dict[str, Any]] = []
-    try:
-        areas = await client.ws_command({"type": "config/area_registry/list"})
-    except Exception:
-        pass
-    try:
-        floors = await client.ws_command({"type": "config/floor_registry/list"})
-    except Exception:
-        pass
-
-    integration_count = len(config_entries) if isinstance(config_entries, list) else 0
-    integration_failed = sum(
-        1 for e in (config_entries if isinstance(config_entries, list) else [])
-        if e.get("state") == "not_loaded"
-    )
-
-    return _dump({
-        "version": config.get("version") if isinstance(config, dict) else None,
-        "location_name": config.get("location_name") if isinstance(config, dict) else None,
-        "unit_system": config.get("unit_system", {}).get("temperature") if isinstance(config, dict) else None,
-        "entities_by_domain": dict(sorted(entities_by_domain.items())),
-        "automation_count": automation_count,
-        "automation_enabled": automation_enabled,
-        "script_count": script_count,
-        "scene_count": scene_count,
-        "pending_updates": update_pending,
-        "update_entities": update_entities,
-        "errors_last_hour": error_count,
-        "integrations": integration_count,
-        "integrations_failed": integration_failed,
-        "areas": len(areas),
-        "floors": len(floors),
-    })
+    return _dump(await _collect_overview())
 
 
 # --------------------------------------------------------------- fuzzy search

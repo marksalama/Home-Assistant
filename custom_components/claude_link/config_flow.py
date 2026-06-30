@@ -14,7 +14,13 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import ConfigFlowResult
 from homeassistant.helpers import config_validation as cv
 
-from .const import CONF_OFFLINE_AFTER, DEFAULT_OFFLINE_AFTER, DOMAIN
+from .const import (
+    CONF_OFFLINE_AFTER,
+    CONF_SHOW_ADVANCED,
+    DEFAULT_OFFLINE_AFTER,
+    DEFAULT_SHOW_ADVANCED,
+    DOMAIN,
+)
 
 
 class ClaudeLinkConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -37,7 +43,8 @@ class ClaudeLinkConfigFlow(ConfigFlow, domain=DOMAIN):
                 {
                     vol.Optional(CONF_OFFLINE_AFTER, default=DEFAULT_OFFLINE_AFTER): vol.All(
                         cv.positive_int, vol.Range(min=30, max=3600)
-                    )
+                    ),
+                    vol.Optional(CONF_SHOW_ADVANCED, default=DEFAULT_SHOW_ADVANCED): cv.boolean,
                 }
             ),
         )
@@ -59,13 +66,18 @@ class ClaudeLinkOptionsFlow(OptionsFlow):
             CONF_OFFLINE_AFTER,
             self.config_entry.data.get(CONF_OFFLINE_AFTER, DEFAULT_OFFLINE_AFTER),
         )
+        current_show_advanced = self.config_entry.options.get(
+            CONF_SHOW_ADVANCED,
+            self.config_entry.data.get(CONF_SHOW_ADVANCED, DEFAULT_SHOW_ADVANCED),
+        )
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Optional(CONF_OFFLINE_AFTER, default=current): vol.All(
                         cv.positive_int, vol.Range(min=30, max=3600)
-                    )
+                    ),
+                    vol.Optional(CONF_SHOW_ADVANCED, default=current_show_advanced): cv.boolean,
                 }
             ),
         )

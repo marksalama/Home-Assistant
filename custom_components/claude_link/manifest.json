@@ -1,7 +1,7 @@
 {
   "domain": "claude_link",
   "name": "Claude Link",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "documentation": "https://github.com/marksalama/Home-Assistant",
   "issue_tracker": "https://github.com/marksalama/Home-Assistant/issues",
   "codeowners": ["@marksalama"],

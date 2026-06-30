@@ -134,9 +134,10 @@ async def set_yaml_key(
         confirm: Required for removal.
         validate: Run check_config afterwards (default True).
 
-    Requires HA_FILES_BACKEND=local or ssh. Works without extra deps for simple
-    keys; install ``ruamel.yaml`` (``pip install home-assistant-mcp[yaml]``) for
-    full YAML round-trip fidelity.
+    Requires HA_FILES_BACKEND=local or ssh. Install the ``yaml`` extra
+    (``pip install home-assistant-mcp[yaml]``) for comment-preserving YAML
+    round-trip editing. Without it, a conservative text fallback is used for
+    simple top-level keys only.
     """
     if value is None and not confirm:
         raise HAError("Refusing to remove a YAML key without confirm=True.")
@@ -145,24 +146,17 @@ async def set_yaml_key(
     content = await asyncio.to_thread(backend.read, path)
 
     lines = content.splitlines(keepends=True)
-    result_lines: list[str] = []
 
-    # --- attempt: use a YAML library for precise editing ---
+    # --- attempt: use ruamel.yaml for comment-preserving round-trip editing ---
     have_yaml = False
     try:
         from ruamel.yaml import YAML  # type: ignore[import-not-found]
         yaml_lib = YAML()
         have_yaml = True
     except ImportError:
-        try:
-            import yaml as yaml_mod  # type: ignore[import-not-found, no-redef]
-            have_yaml = True
-            yaml_lib = yaml_mod  # pyyaml
-        except ImportError:
-            pass
+        yaml_lib = None
 
     if have_yaml:
-        # Round-trip via the YAML library
         parsed = yaml_lib.load(content)
         if parsed is None:
             parsed = {}
@@ -173,10 +167,7 @@ async def set_yaml_key(
             parsed[key] = val_parsed if val_parsed is not None else value
         from io import StringIO
         buf = StringIO()
-        if hasattr(yaml_lib, 'dump'):
-            yaml_lib.dump(parsed, buf)
-        else:
-            yaml_lib.dump(parsed, buf, default_flow_style=False)
+        yaml_lib.dump(parsed, buf)
         new_content = buf.getvalue()
         await _snapshot_existing(backend, path)
         await asyncio.to_thread(backend.write, path, new_content)
@@ -184,7 +175,6 @@ async def set_yaml_key(
         # --- fallback: string-based top-level key replacement ---
         import re
         indent = ""
-        new_lines: list[str] = []
 
         if value is not None:
             # split the value into indented lines (4 spaces per level)
@@ -198,7 +188,7 @@ async def set_yaml_key(
                     new_block += f"      {vl}\n" if vl.strip() else "\n"
 
         # find key boundaries
-        key_pattern = re.compile(rf"^{key}\s*:")
+        key_pattern = re.compile(rf"^{re.escape(key)}\s*:")
         start = None
         end = len(lines)
         for i, line in enumerate(lines):
@@ -239,6 +229,11 @@ async def set_yaml_key(
     outcome = {"ok": True, "path": path, "key": key, "action": "removed" if value is None else "set",
                "snapshot_saved": snapshots is not None,
                "yaml_library_used": have_yaml}
+    if not have_yaml:
+        outcome["warning"] = (
+            "ruamel.yaml is not installed; used the simple text fallback. "
+            "Install home-assistant-mcp[yaml] for safer YAML edits with comments."
+        )
 
     if validate and value is not None:
         try:

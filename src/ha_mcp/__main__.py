@@ -6,11 +6,42 @@ import argparse
 import os
 
 
+def _normalize_transport(transport: str) -> str:
+    return "streamable-http" if transport == "http" else transport
+
+
+def _run_http_app(mcp, transport: str, host: str, port: int, token: str | None) -> None:
+    import uvicorn
+
+    mcp.settings.host = host
+    mcp.settings.port = port
+    if host not in {"127.0.0.1", "localhost", "::1"}:
+        mcp.settings.transport_security = None
+    if transport == "sse":
+        app = mcp.sse_app()
+    else:
+        app = mcp.streamable_http_app()
+
+    if token:
+        from .http_auth import BearerTokenMiddleware
+
+        app = BearerTokenMiddleware(app, token)
+
+    config = uvicorn.Config(
+        app,
+        host=host,
+        port=port,
+        log_level=mcp.settings.log_level.lower(),
+    )
+    server = uvicorn.Server(config)
+    server.run()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Home Assistant MCP server")
     parser.add_argument(
         "--transport",
-        choices=["stdio", "sse", "http"],
+        choices=["stdio", "sse", "http", "streamable-http"],
         default=os.environ.get("HA_TRANSPORT", "stdio"),
         help="Transport to use (default: HA_TRANSPORT env or stdio)",
     )
@@ -30,8 +61,16 @@ def main() -> None:
     # Import here so that --help style imports stay cheap and config errors
     # surface only when actually starting the server.
     from .server import mcp
+    from .app import settings
 
-    mcp.run(transport=args.transport, host=args.host, port=args.port)
+    transport = _normalize_transport(args.transport)
+    settings.transport = "http" if transport == "streamable-http" else transport
+    settings.http_host = args.host
+    settings.http_port = args.port
+    if transport == "stdio":
+        mcp.run(transport="stdio")
+    else:
+        _run_http_app(mcp, transport, args.host, args.port, settings.http_token)
 
 
 if __name__ == "__main__":

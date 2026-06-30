@@ -5,7 +5,8 @@
         "title": "Claude Link",
         "description": "Set up monitoring for your Claude Code AI connection. You can leave the default and press Submit.",
         "data": {
-          "offline_after": "Mark as offline after (seconds without a heartbeat)"
+          "offline_after": "Mark as offline after (seconds without a heartbeat)",
+          "show_advanced_entities": "Show advanced diagnostic entities"
         }
       }
     },
@@ -18,7 +19,8 @@
       "init": {
         "title": "Claude Link options",
         "data": {
-          "offline_after": "Mark as offline after (seconds without a heartbeat)"
+          "offline_after": "Mark as offline after (seconds without a heartbeat)",
+          "show_advanced_entities": "Show advanced diagnostic entities"
         }
       }
     }

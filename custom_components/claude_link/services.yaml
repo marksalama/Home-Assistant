@@ -19,3 +19,71 @@ report:
       example: claude-code
       selector:
         text:
+    transport:
+      name: Transport
+      description: MCP transport currently used by the bridge.
+      example: stdio
+      selector:
+        text:
+    read_only:
+      name: Read-only mode
+      description: Whether the MCP bridge blocks mutating actions.
+      selector:
+        boolean:
+    files_backend:
+      name: File backend
+      description: Raw file backend configured for YAML access.
+      example: ssh
+      selector:
+        text:
+    tools_total:
+      name: Exposed tools
+      description: Number of MCP tools currently exposed to the client.
+      example: 141
+      selector:
+        number:
+          min: 0
+          max: 1000
+          mode: box
+    disabled_tools:
+      name: Disabled tools
+      description: Number of tools disabled through configuration.
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 1000
+          mode: box
+    enabled_tools:
+      name: Enabled whitelist
+      description: Number of whitelisted tools, when HA_ENABLED_TOOLS is used.
+      example: 12
+      selector:
+        number:
+          min: 0
+          max: 1000
+          mode: box
+    http_auth_enabled:
+      name: HTTP auth enabled
+      description: Whether HA_HTTP_TOKEN protects HTTP/SSE transport.
+      selector:
+        boolean:
+    heartbeat_interval:
+      name: Heartbeat interval
+      description: Seconds between automatic bridge heartbeats.
+      example: 30
+      selector:
+        number:
+          min: 1
+          max: 3600
+          mode: box
+    mcp_version:
+      name: MCP version
+      description: Installed MCP bridge package version.
+      example: 0.1.0
+      selector:
+        text:
+
+reset_stats:
+  name: Reset visible stats
+  description: Reset the visible Claude Link counters in Home Assistant.

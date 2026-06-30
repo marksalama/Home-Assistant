@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..app import _dump, client, mcp
+from ..app import _dump, _project_dict, client, mcp
 from ..ha_client import HAError
 
 # --------------------------------------------------------------------- areas
@@ -84,12 +84,19 @@ async def delete_floor(floor_id: str) -> str:
 
 # ------------------------------------------------------------------- devices
 @mcp.tool()
-async def list_devices(search: str | None = None) -> str:
-    """List devices from the device registry (optionally filtered by name)."""
+async def list_devices(search: str | None = None, fields: str | None = None) -> str:
+    """List devices from the device registry (optionally filtered by name).
+
+    Args:
+        fields: Comma-separated field names to include per device, e.g.
+            "id,name,area_id". Omit for the full registry payload.
+    """
     devices = await client.ws_command({"type": "config/device_registry/list"})
     if search:
         s = search.lower()
         devices = [d for d in devices if s in (d.get("name_by_user") or d.get("name") or "").lower()]
+    if fields:
+        devices = [_project_dict(device, fields) for device in devices]
     return _dump(devices)
 
 
@@ -117,8 +124,17 @@ async def remove_device(device_id: str, confirm: bool = False) -> str:
 
 # ------------------------------------------------------------- entity registry
 @mcp.tool()
-async def list_entity_registry(domain: str | None = None, search: str | None = None) -> str:
-    """List registry entries for entities (ids, names, area, device, disabled state)."""
+async def list_entity_registry(
+    domain: str | None = None,
+    search: str | None = None,
+    fields: str | None = None,
+) -> str:
+    """List registry entries for entities (ids, names, area, device, disabled state).
+
+    Args:
+        fields: Comma-separated field names to include per entry, e.g.
+            "entity_id,name,area_id,device_id,disabled_by".
+    """
     entries = await client.ws_command({"type": "config/entity_registry/list"})
     if domain or search:
         filtered = []
@@ -131,6 +147,8 @@ async def list_entity_registry(domain: str | None = None, search: str | None = N
                 continue
             filtered.append(e)
         entries = filtered
+    if fields:
+        entries = [_project_dict(entry, fields) for entry in entries]
     return _dump(entries)
 
 
@@ -188,6 +206,7 @@ async def set_entity_exposure(
     entity_id: str,
     expose: bool = True,
     assistant: str = "conversation",
+    assistants: list[str] | None = None,
 ) -> str:
     """Set entity exposure for a specific assistant via the
     ``homeassistant/expose_entity`` WS command.
@@ -199,13 +218,17 @@ async def set_entity_exposure(
             "conversation" (local Assist, default),
             "cloud.alexa" (Alexa via Nabu Casa),
             "cloud.google_assistant" (Google Assistant via Nabu Casa).
+        assistants: Optional list of assistants for batch exposure. When set,
+            it overrides assistant.
     """
     valid = {"conversation", "cloud.alexa", "cloud.google_assistant"}
-    if assistant not in valid:
-        raise HAError(f"assistant must be one of {sorted(valid)}, got {assistant!r}")
+    selected = assistants or [assistant]
+    invalid = [item for item in selected if item not in valid]
+    if invalid:
+        raise HAError(f"assistants must be in {sorted(valid)}, got {invalid!r}")
     return _dump(await client.ws_command({
         "type": "homeassistant/expose_entity",
-        "assistants": [assistant],
+        "assistants": selected,
         "entity_ids": [entity_id],
         "should_expose": expose,
     }))
@@ -367,9 +390,17 @@ async def delete_zone(zone_id: str, confirm: bool = False) -> str:
 
 # ----------------------------------------------------------- config entries
 @mcp.tool()
-async def list_config_entries() -> str:
-    """List configured integrations (config entries)."""
-    return _dump(await client.ws_command({"type": "config_entries/get"}))
+async def list_config_entries(fields: str | None = None) -> str:
+    """List configured integrations (config entries).
+
+    Args:
+        fields: Comma-separated field names to include per integration, e.g.
+            "entry_id,domain,title,state,source".
+    """
+    entries = await client.ws_command({"type": "config_entries/get"})
+    if fields:
+        entries = [_project_dict(entry, fields) for entry in entries]
+    return _dump(entries)
 
 
 @mcp.tool()

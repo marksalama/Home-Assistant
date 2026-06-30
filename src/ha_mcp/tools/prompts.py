@@ -14,10 +14,11 @@ from ..app import mcp
 def overview() -> str:
     """Give a clear, structured overview of the Home Assistant installation."""
     return (
-        "Geef een helder overzicht van mijn Home Assistant. Gebruik get_config, "
-        "list_areas, en list_entities (gefilterd per domein) om te tonen: versie, "
-        "aantal entiteiten per type, areas/kamers, en eventuele problemen "
-        "(check list_updates en get_error_log). Vat het bondig samen, geen ruwe JSON."
+        "Geef een helder overzicht van mijn Home Assistant. Gebruik eerst "
+        "get_overview. Gebruik daarna alleen gerichte details zoals "
+        "list_config_entries(fields='entry_id,domain,title,state') of "
+        "list_entities(domain=..., fields='entity_id,state,friendly_name') als "
+        "dat nodig is. Vat het bondig samen, geen ruwe JSON."
     )
 
 
@@ -26,8 +27,10 @@ def diagnose(entity_id: str) -> str:
     """Debug a single entity that misbehaves."""
     return (
         f"Diagnosticeer {entity_id}. Gebruik diagnose_entity en, indien nuttig, "
-        f"get_history en get_error_log. Leg in gewone taal uit wat er aan de hand "
-        f"lijkt en stel een concrete oplossing voor (vraag bevestiging vóór wijzigingen)."
+        f"get_history en get_error_log. get_error_log geeft structured system_log "
+        f"items met level, source, count en exception; vat alleen de relevante "
+        f"regels samen. Leg in gewone taal uit wat er aan de hand lijkt en stel "
+        f"een concrete oplossing voor (vraag bevestiging voor wijzigingen)."
     )
 
 
@@ -48,10 +51,11 @@ def edit_config(change: str) -> str:
     """Safely edit a YAML config file with validation and rollback awareness."""
     return (
         f"Pas mijn configuratie aan: {change}.\n"
-        "Werkwijze: lees eerst het betreffende bestand met read_config_file, maak "
-        "de wijziging met write_config_file (de vorige versie wordt automatisch als "
-        "snapshot bewaard), draai check_config, en herlaad het domein of herstart "
-        "(check_config moet eerst slagen). Als er iets misgaat, gebruik "
+        "Werkwijze: lees eerst het betreffende bestand met read_config_file. "
+        "Gebruik set_yaml_key voor een enkele top-level YAML-key, of "
+        "write_config_file voor grotere edits (de vorige versie wordt automatisch "
+        "als snapshot bewaard). Draai check_config, en herlaad het domein of "
+        "herstart pas als check_config slaagt. Als er iets misgaat, gebruik "
         "restore_config_file om terug te draaien."
     )
 
@@ -60,8 +64,8 @@ def edit_config(change: str) -> str:
 def safe_update() -> str:
     """Check for and install updates safely, with a backup first."""
     return (
-        "Controleer met list_updates welke updates beschikbaar zijn. Maak eerst een "
-        "back-up met create_backup. Toon mij de lijst en, na mijn akkoord, installeer "
-        "de updates met install_update(confirm=true). Voor add-ons: gebruik "
-        "get_addon_changelog vóór control_addon(..., 'update')."
+        "Controleer met list_updates welke updates beschikbaar zijn. Maak eerst "
+        "een back-up met create_backup. Toon mij de lijst en, na mijn akkoord, "
+        "installeer de updates met install_update(confirm=true). Voor add-ons: "
+        "gebruik get_addon_changelog voor control_addon(..., 'update')."
     )

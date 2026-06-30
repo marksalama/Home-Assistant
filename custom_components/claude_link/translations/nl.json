@@ -5,7 +5,8 @@
         "title": "Claude Link",
         "description": "Stel monitoring in voor je Claude Code AI-verbinding. Je kunt de standaardwaarde laten staan en op Verzenden klikken.",
         "data": {
-          "offline_after": "Markeer als offline na (seconden zonder hartslag)"
+          "offline_after": "Markeer als offline na (seconden zonder hartslag)",
+          "show_advanced_entities": "Toon geavanceerde diagnostische entiteiten"
         }
       }
     },
@@ -18,7 +19,8 @@
       "init": {
         "title": "Claude Link-opties",
         "data": {
-          "offline_after": "Markeer als offline na (seconden zonder hartslag)"
+          "offline_after": "Markeer als offline na (seconden zonder hartslag)",
+          "show_advanced_entities": "Toon geavanceerde diagnostische entiteiten"
         }
       }
     }

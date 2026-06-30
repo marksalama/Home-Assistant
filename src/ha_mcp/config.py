@@ -73,6 +73,7 @@ class Settings:
     transport: str
     http_host: str
     http_port: int
+    http_token: str | None
 
     @property
     def ws_url(self) -> str:
@@ -124,4 +125,5 @@ def load_settings() -> Settings:
         transport=os.environ.get("HA_TRANSPORT", "stdio").strip().lower(),
         http_host=os.environ.get("HA_HOST", "127.0.0.1").strip(),
         http_port=int(os.environ.get("HA_PORT", "8765")),
+        http_token=os.environ.get("HA_HTTP_TOKEN", "").strip() or None,
     )

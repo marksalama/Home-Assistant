@@ -12,17 +12,17 @@ Send = Callable[[dict[str, Any]], Awaitable[None]]
 
 
 class BearerTokenMiddleware:
-    """Protect an ASGI app with a single static Bearer token."""
+    """Protect an ASGI app with a single static Bearer token.
+
+    Both ``http`` and ``websocket`` scopes are checked; anything else except
+    ``lifespan`` is rejected so no transport can slip past authentication.
+    """
 
     def __init__(self, app: Callable[[Scope, Receive, Send], Awaitable[None]], token: str) -> None:
         self.app = app
         self.token = token
 
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope.get("type") != "http":
-            await self.app(scope, receive, send)
-            return
-
+    def _authorized(self, scope: Scope) -> bool:
         headers = {
             key.decode("latin1").lower(): value.decode("latin1")
             for key, value in scope.get("headers", [])
@@ -30,8 +30,20 @@ class BearerTokenMiddleware:
         auth = headers.get("authorization", "")
         prefix = "Bearer "
         provided = auth[len(prefix):] if auth.startswith(prefix) else ""
-        if hmac.compare_digest(provided, self.token):
+        return hmac.compare_digest(provided, self.token)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        scope_type = scope.get("type")
+        if scope_type == "lifespan":
             await self.app(scope, receive, send)
+            return
+
+        if self._authorized(scope):
+            await self.app(scope, receive, send)
+            return
+
+        if scope_type == "websocket":
+            await send({"type": "websocket.close", "code": 4401})
             return
 
         body = b"Unauthorized: expected Authorization: Bearer <HA_HTTP_TOKEN>."

@@ -28,7 +28,6 @@ from .config import Settings
 from .dashboard_template import build_dashboard
 from .ha_client import HAClient
 
-
 CLAUDE_LINK_SUFFIX_MAP = {
     "connected": "_connected",
     "last_activity": "_last_activity",

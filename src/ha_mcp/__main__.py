@@ -37,8 +37,22 @@ def _run_http_app(mcp, transport: str, host: str, port: int, token: str | None) 
     server.run()
 
 
+def _version() -> str:
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version("home-assistant-mcp")
+    except PackageNotFoundError:
+        return "dev"
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Home Assistant MCP server")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"home-assistant-mcp {_version()}",
+    )
     parser.add_argument(
         "--transport",
         choices=["stdio", "sse", "http", "streamable-http"],
@@ -60,8 +74,8 @@ def main() -> None:
 
     # Import here so that --help style imports stay cheap and config errors
     # surface only when actually starting the server.
-    from .server import mcp
     from .app import settings
+    from .server import mcp
 
     transport = _normalize_transport(args.transport)
     settings.transport = "http" if transport == "streamable-http" else transport

@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from ..app import _dump, client, settings, mcp
+from ..app import _dump, client, mcp, settings
 from ..files import get_backend
 from ..ha_client import HAError, ReadOnlyError
 
@@ -183,7 +183,7 @@ async def get_core_logs() -> str:
         try:
             return _dump(_read_config_log_file())
         except Exception:
-            raise exc
+            raise exc from None
 
 
 @mcp.tool()

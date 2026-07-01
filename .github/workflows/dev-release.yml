@@ -36,11 +36,12 @@ jobs:
         run: |
           python - <<'PY'
           import os
+          import re
           from pathlib import Path
           path = Path("pyproject.toml")
           text = path.read_text()
           version = os.environ["DEV_VERSION"]
-          text = text.replace('version = "0.3.0"', f'version = "{version}"')
+          text = re.sub(r'^version = "[^"]+"', f'version = "{version}"', text, count=1, flags=re.M)
           path.write_text(text)
           PY
         env:

@@ -7,8 +7,8 @@ your secrets file, and prints clear ✅/⚠️/❌ results with hints.
 
 from __future__ import annotations
 
-import asyncio
 import argparse
+import asyncio
 import os
 import stat
 import sys

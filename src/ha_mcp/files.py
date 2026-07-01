@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import posixpath
 import stat
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -91,6 +92,9 @@ class LocalBackend:
 
 
 class SSHBackend:
+    """SFTP-backed file access with trust-on-first-use host key handling and a
+    reused connection (one SSH handshake instead of one per file operation)."""
+
     def __init__(self, settings: Settings) -> None:
         try:
             import paramiko  # noqa: F401
@@ -102,11 +106,21 @@ class SSHBackend:
             raise FilesDisabledError("HA_SSH_HOST is required for the ssh backend.")
         self.s = settings
         self.root = posixpath.normpath(settings.ssh_config_dir)
+        self._client = None
+        self._sftp = None
+        self._lock = threading.Lock()
 
-    def _connect(self):
+    def _open_client(self):
         import paramiko
 
         client = paramiko.SSHClient()
+        # Trust-on-first-use: unknown hosts are accepted once and persisted to
+        # a known_hosts file; a *changed* key on a later connection is rejected
+        # (protects the SSH password/key against MITM after the first run).
+        known_hosts = Path(self.s.ssh_known_hosts).expanduser()
+        known_hosts.parent.mkdir(parents=True, exist_ok=True)
+        if known_hosts.is_file():
+            client.load_host_keys(str(known_hosts))
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         connect_kwargs: dict = {
             "hostname": self.s.ssh_host,
@@ -119,7 +133,36 @@ class SSHBackend:
         if self.s.ssh_password:
             connect_kwargs["password"] = self.s.ssh_password
         client.connect(**connect_kwargs)
+        try:
+            client.save_host_keys(str(known_hosts))
+        except OSError:
+            pass  # persistence is best-effort; the connection itself is fine
         return client
+
+    def _get_sftp(self):
+        """Return a healthy cached SFTP session, reconnecting when stale."""
+        if self._client is not None:
+            transport = self._client.get_transport()
+            if transport is not None and transport.is_active() and self._sftp is not None:
+                return self._sftp
+            self._close_locked()
+        self._client = self._open_client()
+        self._sftp = self._client.open_sftp()
+        return self._sftp
+
+    def _close_locked(self) -> None:
+        if self._sftp is not None:
+            try:
+                self._sftp.close()
+            except Exception:  # noqa: BLE001
+                pass
+            self._sftp = None
+        if self._client is not None:
+            try:
+                self._client.close()
+            except Exception:  # noqa: BLE001
+                pass
+            self._client = None
 
     def _resolve(self, rel_path: str) -> str:
         normalized = _normalize(rel_path)
@@ -130,9 +173,8 @@ class SSHBackend:
 
     def list_dir(self, rel_path: str) -> list[FileEntry]:
         base = self._resolve(rel_path)
-        client = self._connect()
-        try:
-            sftp = client.open_sftp()
+        with self._lock:
+            sftp = self._get_sftp()
             entries: list[FileEntry] = []
             for attr in sftp.listdir_attr(base):
                 is_dir = stat.S_ISDIR(attr.st_mode or 0)
@@ -148,47 +190,50 @@ class SSHBackend:
                 )
             entries.sort(key=lambda e: (not e.is_dir, e.name))
             return entries
-        finally:
-            client.close()
 
     def read(self, rel_path: str) -> str:
         target = self._resolve(rel_path)
-        client = self._connect()
-        try:
-            sftp = client.open_sftp()
+        with self._lock:
+            sftp = self._get_sftp()
             with sftp.open(target, "r") as fh:
                 return fh.read().decode("utf-8")
-        finally:
-            client.close()
 
     def write(self, rel_path: str, content: str) -> None:
         target = self._resolve(rel_path)
-        client = self._connect()
-        try:
-            sftp = client.open_sftp()
+        with self._lock:
+            sftp = self._get_sftp()
             with sftp.open(target, "w") as fh:
                 fh.write(content)
-        finally:
-            client.close()
 
     def delete(self, rel_path: str) -> None:
         target = self._resolve(rel_path)
-        client = self._connect()
-        try:
-            sftp = client.open_sftp()
+        with self._lock:
+            sftp = self._get_sftp()
             sftp.remove(target)
-        finally:
-            client.close()
+
+
+# One backend per process so the SSH backend can keep its connection alive
+# across tool calls.
+_cached_backend: FileBackend | None = None
+_cache_lock = threading.Lock()
 
 
 def get_backend(settings: Settings) -> FileBackend | None:
     backend = settings.files_backend
     if backend in ("", "none"):
         return None
-    if backend == "local":
-        if not settings.config_dir:
-            raise FilesDisabledError("HA_CONFIG_DIR is required for the local backend.")
-        return LocalBackend(settings.config_dir)
-    if backend == "ssh":
-        return SSHBackend(settings)
-    raise FilesDisabledError(f"Unknown HA_FILES_BACKEND: {backend!r} (expected none/local/ssh)")
+    global _cached_backend
+    with _cache_lock:
+        if _cached_backend is not None:
+            return _cached_backend
+        if backend == "local":
+            if not settings.config_dir:
+                raise FilesDisabledError("HA_CONFIG_DIR is required for the local backend.")
+            _cached_backend = LocalBackend(settings.config_dir)
+        elif backend == "ssh":
+            _cached_backend = SSHBackend(settings)
+        else:
+            raise FilesDisabledError(
+                f"Unknown HA_FILES_BACKEND: {backend!r} (expected none/local/ssh)"
+            )
+        return _cached_backend

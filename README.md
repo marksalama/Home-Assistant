@@ -8,15 +8,13 @@ Dit project bestaat uit **drie onderdelen**:
 
 | Onderdeel | Wat het doet | Waar het draait |
 |-----------|--------------|-----------------|
-| 🧠 **MCP-server** | 148+ tools waarmee Coding agents je HA besturen, configureren, beheren en debuggen (REST + WebSocket API + ruwe YAML-bestanden) | Op je computer, naast je favoriete coding agent, of als HA OS add-on |
+| 🧠 **MCP-server** | 159 tools waarmee Coding agents je HA besturen, configureren, beheren en debuggen (REST + WebSocket API + ruwe YAML-bestanden) | Op je computer, naast je favoriete coding agent, of als HA OS add-on |
 | 🏠 **Claude Link** (integratie) | Visuele status-tegels + automatisch dashboard in Home Assistant, installeerbaar via **HACS** | In Home Assistant |
 | ✨ **Setup-wizard** | Zet alles automatisch op: verbinding testen, koppelen aan je AI-client, dashboard aanmaken | Eén commando |
 
 > Geschikt voor **HA 2026.6+** · **HA OS / Supervised / Container / Core** · 9 AI-clients ondersteund.
 
-Nieuw in deze fase: extra setup-tools, themabeheer, HACS-inzicht,
-issue-reporting, bundled skill guides, HA OS add-on packaging, dev-channel
-releases en optionele combined mode met HA's eigen `/api/mcp`.
+Nieuw in 0.4.0: volledige security-audit (read-only mode fail-closed, HTTP-auth ook voor websockets, SSH host key-controle), persistente WebSocket/SSH-verbindingen, 11 nieuwe tools (o.a. `search_related`, `list_repair_issues`, `converse`, `bulk_assign_area`), camera-snapshots als echte afbeeldingen, unit tests + CI. Zie [CHANGELOG.md](CHANGELOG.md) en [docs/ANALYSE-EN-AUDIT.md](docs/ANALYSE-EN-AUDIT.md).
 
 ---
 
@@ -160,11 +158,11 @@ Wil je ook de veilige read-tools tegen je echte HA API controleren, gebruik dan:
 
 ---
 
-## 🧰 Wat de MCP-server allemaal kan (148+ tools)
+## 🧰 Wat de MCP-server allemaal kan (159 tools)
 
 | Categorie | Tools |
 |-----------|-------|
-| **States & besturing** | `list_entities` (met `fields=` projectie), `get_state` (met `attribute_keys=`), `set_state`, `call_service`, `fire_event`, `list_services`, `bulk_control` |
+| **States & besturing** | `list_entities` (met `fields=`, `state=`, `limit`/`offset`), `get_state` (met `attribute_keys=`), `set_state`, `call_service`, `fire_event`, `list_services`, `bulk_control`, `trigger_webhook` |
 | **Overzicht & zoeken** | `get_overview`, `fuzzy_search` (fuzzy match op naam/area/label) |
 | **Automations** | `list/get/upsert/delete/trigger_automation` |
 | **Scripts** | `list/get/upsert/delete/run_script` |
@@ -173,24 +171,25 @@ Wil je ook de veilige read-tools tegen je echte HA API controleren, gebruik dan:
 | **Automation-traces** | `list_automation_traces`, `get_automation_trace`, `delete_automation_trace` |
 | **Todo-lijsten** | `list_todo_lists`, `get/add/update/remove_todo_item` |
 | **Kalender** | `list_calendars`, `get/create/update/remove_calendar_event` |
-| **Camera** | `get_camera_image` (base64-snapshot) |
+| **Camera** | `get_camera_image` (echte MCP-afbeelding; `as_base64=true` als fallback) |
 | **Dashboards** | `list/get/save/create_dashboard` |
 | **Helpers** | `list/create/update/delete_helper` (input_\*, counter, timer, schedule) |
 | **Groepen** | `list/create/update/remove_group` |
 | **Areas & floors** | `list/create/update/delete_area`, `list/create/update/delete_floor` |
-| **Devices & entities** | `list/update/remove_device`, `list_entity_registry` (met `fields=`), `update/remove_entity`, `get/set_entity_exposure` |
+| **Devices & entities** | `list/update/remove_device`, `list_device_capabilities` (device-triggers/-conditions/-actions), `list_entity_registry` (met `fields=`), `update/remove_entity`, `bulk_assign_area`, `get/set_entity_exposure` |
 | **Labels, personen, zones** | `list/get/create/update/delete_label`, `list/create/update/remove_person`, `list/get/create/update/delete_zone` |
 | **Integraties** | `list_config_entries` (met `fields=`), `reload/delete_config_entry` |
 | **Add-on-beheer** (HA OS) | `list_addons`, `list_available_addons`, `get_addon_info/stats/changelog/logs`, `install_addon`, `uninstall_addon`, `set_addon_options`, `control_addon` (start/stop/restart/update/rebuild) |
 | **Back-ups & rollback** | `list/create/restore/delete_backup`, `list_file_snapshots`, `restore_config_file` |
-| **Debug & onderhoud** | `get_core/supervisor/host_logs`, `get_error_log` (via `system_log`), `set_log_level`, `set_default_log_level`, `diagnose_entity`, `purge_database`, `system_health` |
+| **Debug & onderhoud** | `get_core/supervisor/host_logs`, `get_error_log` (met `level=`, `search=`, `limit=`), `clear_error_log`, `set_log_level`, `set_default_log_level`, `diagnose_entity`, `search_related`, `list_repair_issues`, `recorder_info`, `get_config_entry_diagnostics`, `purge_database`, `system_health` |
 | **Systeem** | `get_config`, `check_config`, `restart_home_assistant`, `reload_domain`, `update_supervisor`, `reboot_host` |
 | **Thema's** | `list_themes`, `manage_theme` (`list`, `set`, `reload`) |
 | **HACS** | `get_hacs_info` (veilig zoeken/lezen van HACS repositories) |
 | **Setup & support** | `get_mcp_install_options`, `install_mcp_tools`, `report_issue`, `get_skill_guide` |
 | **MQTT & energie** | `mqtt_publish`, `get_energy_prefs`, `save_energy_prefs` |
+| **Voice / Assist** | `converse` (natuurlijke taal naar Assist), `list_assist_pipelines` |
 | **Meldingen & updates** | `list/create/dismiss_notification`, `notify`, `list_updates`, `install_update` (met back-up) |
-| **Templates & data** | `render_template`, `get_history`, `get_logbook`, `get_statistics` |
+| **Templates & data** | `render_template`, `get_history` (meerdere entities), `get_logbook`, `get_statistics`, `list_statistic_ids` |
 | **YAML-bestanden** | `list/read/write/delete_config_file`, `set_yaml_key` (gestructureerde edit met validatie), `restore_config_file` (met snapshots) |
 | **Discovery & MCP** | `search_tools`, `call_read_tool`, `call_write_tool`, `call_delete_tool` |
 
@@ -212,7 +211,7 @@ zonder een tool-call — handig voor context:
 
 ## 🔎 Tool-discovery (voor kleinere / lokale LLM's)
 
-Met 148+ tools kan de tool-catalogus kleinere modellen (Claude Haiku, Gemini,
+Met 159 tools kan de tool-catalogus kleinere modellen (Claude Haiku, Gemini,
 ChatGPT, lokale Ollama-modellen) overweldigen. Zet **search-based discovery**
 aan om alleen de benodigde tools in context te laden:
 
@@ -380,6 +379,9 @@ Configureer je client met de URL `http://jouw-pc:8765/mcp`.
 | `HA_PORT` | `8765` | Bind-poort voor HTTP/SSE |
 | `HA_HTTP_TOKEN` | — | Optionele Bearer-tokenbeveiliging voor HTTP/SSE |
 | `HA_BUILTIN_MCP_URL` | — | Optionele proxy naar HA's eigen `/api/mcp` combined mode |
+| `HA_LOG_LEVEL` | `warning` | Log-niveau van de MCP-server zelf (stderr) |
+| `HA_SNAPSHOT_KEEP` | `30` | Aantal snapshots dat per bestand bewaard blijft |
+| `HA_SSH_KNOWN_HOSTS` | `~/.ha-mcp/known_hosts` | Waar SSH host keys onthouden worden (trust-on-first-use) |
 
 Zie [`.env.example`](./.env.example) voor gedetailleerde uitleg per variabele.
 
@@ -398,6 +400,9 @@ Je geeft veel toegang, dus dit is belangrijk. Zo is het opgezet:
   `chmod 600` (alleen voor jou leesbaar). Beide staan in `.gitignore`.
 - **SSH met sleutel.** Bij bestandstoegang kun je een SSH-**sleutel** kiezen in
   plaats van een wachtwoord (`HA_SSH_KEY_FILE`).
+- **SSH host key-controle.** Host keys worden bij de eerste verbinding
+  onthouden (`~/.ha-mcp/known_hosts`); een gewijzigde key wordt daarna
+  geweigerd (bescherming tegen MITM).
 - **Minimale rechten (aanrader).** Maak in Home Assistant een **aparte gebruiker**
   voor Claude en maak het token onder die gebruiker aan. Zo kun je de toegang in
   één klik intrekken (Instellingen → Personen → gebruiker → token verwijderen).
@@ -425,7 +430,8 @@ src/ha_mcp/                        # de MCP-server (Python)
   config.py                        #   env-driven configuratie (Settings)
   ha_client.py                     #   REST + WebSocket client (+ read-only handhaving)
   files.py                         #   local & ssh bestands-backends (met padbeveiliging)
-  snapshots.py                     #   lokale snapshots voor omkeerbare bestandswijzigingen
+  snapshots.py                     #   lokale snapshots voor omkeerbare bestandswijzigingen (met pruning)
+  yaml_edit.py                     #   pure YAML-editlogica voor set_yaml_key (getest)
   server.py                        #   import → registreert alle tools + resources + discovery
   resources.py                     #   MCP Resources (homeassistant://overview, /services, …)
   setup.py                         #   de interactieve wizard (ha-mcp-setup, 9 clients)
@@ -448,6 +454,7 @@ src/ha_mcp/                        # de MCP-server (Python)
     blueprints.py                  #     automation/script blueprints
     groups.py                      #     entity-groepen (group.set/remove)
     traces.py                      #     automation-traces (debugging)
+    voice.py                       #     Assist: converse + pipelines
     discovery.py                   #     tool-search proxy (search_tools, call_read/write/delete_tool)
     prompts.py                     #     5 workflow-prompts (slash-commando's)
 custom_components/claude_link/     # de HACS-integratie (status + dashboard in HA)

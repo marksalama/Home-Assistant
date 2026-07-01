@@ -39,6 +39,26 @@ def _as_bool(value: str | None, default: bool) -> bool:
     return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _as_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return int(raw.strip())
+    except ValueError:
+        raise SystemExit(f"{name} must be a whole number, got {raw!r}.") from None
+
+
+def _as_float(name: str, default: float) -> float:
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return float(raw.strip())
+    except ValueError:
+        raise SystemExit(f"{name} must be a number, got {raw!r}.") from None
+
+
 @dataclass
 class Settings:
     ha_url: str
@@ -76,6 +96,11 @@ class Settings:
     http_token: str | None
     builtin_mcp_url: str | None
 
+    # new options (keyword defaults keep older Settings(...) call sites working)
+    snapshot_keep: int = 30
+    log_level: str = "warning"
+    ssh_known_hosts: str = str(Path.home() / ".ha-mcp" / "known_hosts")
+
     @property
     def ws_url(self) -> str:
         base = self.ha_url.rstrip("/")
@@ -97,18 +122,35 @@ def load_settings() -> Settings:
     ha_token = os.environ.get("HA_TOKEN", "").strip()
     if not ha_url:
         raise SystemExit("HA_URL is not set. See .env.example for configuration help.")
+    if not ha_url.startswith(("http://", "https://")):
+        raise SystemExit(
+            f"HA_URL must start with http:// or https://, got {ha_url!r} "
+            "(example: http://homeassistant.local:8123)."
+        )
     if not ha_token:
         raise SystemExit("HA_TOKEN is not set. Create a Long-Lived Access Token in Home Assistant.")
+
+    files_backend = os.environ.get("HA_FILES_BACKEND", "none").strip().lower()
+    if files_backend not in {"", "none", "local", "ssh"}:
+        raise SystemExit(
+            f"HA_FILES_BACKEND must be none, local or ssh, got {files_backend!r}."
+        )
+
+    transport = os.environ.get("HA_TRANSPORT", "stdio").strip().lower()
+    if transport not in {"stdio", "sse", "http", "streamable-http"}:
+        raise SystemExit(
+            f"HA_TRANSPORT must be stdio, sse or http, got {transport!r}."
+        )
 
     return Settings(
         ha_url=ha_url,
         ha_token=ha_token,
         verify_ssl=_as_bool(os.environ.get("HA_VERIFY_SSL"), True),
-        timeout=float(os.environ.get("HA_TIMEOUT", "30")),
-        files_backend=os.environ.get("HA_FILES_BACKEND", "none").strip().lower(),
+        timeout=_as_float("HA_TIMEOUT", 30.0),
+        files_backend=files_backend,
         config_dir=os.environ.get("HA_CONFIG_DIR"),
         ssh_host=os.environ.get("HA_SSH_HOST"),
-        ssh_port=int(os.environ.get("HA_SSH_PORT", "22")),
+        ssh_port=_as_int("HA_SSH_PORT", 22),
         ssh_user=os.environ.get("HA_SSH_USER"),
         ssh_password=os.environ.get("HA_SSH_PASSWORD"),
         ssh_key_file=os.environ.get("HA_SSH_KEY_FILE"),
@@ -123,9 +165,14 @@ def load_settings() -> Settings:
         ),
         disabled_tools={t.strip() for t in os.environ.get("HA_DISABLED_TOOLS", "").split(",") if t.strip()},
         enabled_tools={t.strip() for t in os.environ.get("HA_ENABLED_TOOLS", "").split(",") if t.strip()} or None,
-        transport=os.environ.get("HA_TRANSPORT", "stdio").strip().lower(),
+        transport=transport,
         http_host=os.environ.get("HA_HOST", "127.0.0.1").strip(),
-        http_port=int(os.environ.get("HA_PORT", "8765")),
+        http_port=_as_int("HA_PORT", 8765),
         http_token=os.environ.get("HA_HTTP_TOKEN", "").strip() or None,
         builtin_mcp_url=os.environ.get("HA_BUILTIN_MCP_URL", "").strip() or None,
+        snapshot_keep=_as_int("HA_SNAPSHOT_KEEP", 30),
+        log_level=os.environ.get("HA_LOG_LEVEL", "warning").strip().lower(),
+        ssh_known_hosts=os.environ.get(
+            "HA_SSH_KNOWN_HOSTS", str(Path.home() / ".ha-mcp" / "known_hosts")
+        ),
     )

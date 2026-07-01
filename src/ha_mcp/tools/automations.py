@@ -8,6 +8,7 @@ effect immediately.
 from __future__ import annotations
 
 from ..app import _dump, client, mcp
+from ..ha_client import HAError
 
 
 # ---------------------------------------------------------------- automations
@@ -102,6 +103,8 @@ async def delete_script(script_id: str) -> str:
 async def run_script(entity_id: str, variables: dict | None = None) -> str:
     """Run a script now. entity_id like 'script.my_script'."""
     domain, _, obj = entity_id.partition(".")
+    if domain != "script" or not obj:
+        raise HAError(f"entity_id must look like 'script.my_script', got {entity_id!r}")
     return _dump(await client.rest_post(f"/services/script/{obj}", variables or {}))
 
 

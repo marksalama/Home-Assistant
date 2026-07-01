@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 DEFAULT_ENTITIES = {
     "connected": "binary_sensor.claude_link_connected",
     "last_activity": "sensor.claude_link_last_activity",

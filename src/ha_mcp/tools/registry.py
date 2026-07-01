@@ -8,6 +8,7 @@ from typing import Any
 from ..app import _dump, _project_dict, client, mcp
 from ..ha_client import HAError
 
+
 # --------------------------------------------------------------------- areas
 @mcp.tool()
 async def list_areas() -> str:
@@ -417,3 +418,69 @@ async def delete_config_entry(entry_id: str, confirm: bool = False) -> str:
     if not confirm:
         raise HAError("Refusing to delete an integration without confirm=True.")
     return _dump(await client.rest_delete(f"/config/config_entries/entry/{entry_id}"))
+
+
+# ------------------------------------------------------- bulk area assignment
+@mcp.tool()
+async def bulk_assign_area(
+    area_id: str,
+    entity_ids: list[str] | None = None,
+    device_ids: list[str] | None = None,
+) -> str:
+    """Assign multiple entities and/or devices to an area in one call.
+
+    Args:
+        area_id: The target area (from list_areas).
+        entity_ids: Entities to move to the area.
+        device_ids: Devices to move to the area (their entities follow the
+            device unless they have their own area override).
+    """
+    if not entity_ids and not device_ids:
+        raise HAError("Provide entity_ids and/or device_ids.")
+    results: list[dict[str, Any]] = []
+    for eid in entity_ids or []:
+        try:
+            await client.ws_command({
+                "type": "config/entity_registry/update",
+                "entity_id": eid,
+                "area_id": area_id,
+            })
+            results.append({"entity_id": eid, "ok": True})
+        except Exception as exc:  # noqa: BLE001
+            results.append({"entity_id": eid, "ok": False, "error": str(exc)})
+    for did in device_ids or []:
+        try:
+            await client.ws_command({
+                "type": "config/device_registry/update",
+                "device_id": did,
+                "area_id": area_id,
+            })
+            results.append({"device_id": did, "ok": True})
+        except Exception as exc:  # noqa: BLE001
+            results.append({"device_id": did, "ok": False, "error": str(exc)})
+    return _dump({
+        "area_id": area_id,
+        "total": len(results),
+        "succeeded": sum(1 for r in results if r["ok"]),
+        "results": results,
+    })
+
+
+# ------------------------------------------------- device automation options
+@mcp.tool()
+async def list_device_capabilities(device_id: str, kind: str = "trigger") -> str:
+    """List the device automation options a device offers — what it can
+    trigger on, which conditions it supports, or which actions it accepts.
+    Very useful when building device-based automations.
+
+    Args:
+        device_id: The device id (from list_devices).
+        kind: "trigger" (default), "condition" or "action".
+    """
+    allowed = {"trigger", "condition", "action"}
+    if kind not in allowed:
+        raise HAError(f"kind must be one of {sorted(allowed)}, got {kind!r}")
+    return _dump(await client.ws_command({
+        "type": f"device_automation/{kind}/list",
+        "device_id": device_id,
+    }))

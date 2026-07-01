@@ -8,10 +8,9 @@ directly callable by name once discovered.
 from __future__ import annotations
 
 import os
-import re
 from typing import Any
 
-from ..app import _dump, mcp, settings
+from ..app import _dump, mcp
 from ..ha_client import HAError
 
 # ---------------------------------------------------------------------------
@@ -53,6 +52,10 @@ _READ_TOOLS = {
     "report_issue",
     "get_skill_guide",
     "get_hacs_info",
+    # diagnostics & discovery additions
+    "search_related", "list_repair_issues", "recorder_info",
+    "get_config_entry_diagnostics", "list_statistic_ids",
+    "list_assist_pipelines", "list_device_capabilities",
 }
 
 _DELETE_TOOLS = {
@@ -95,13 +98,13 @@ _WRITE_TOOLS.add("call_write_tool")
 _DELETE_TOOLS.add("call_delete_tool")
 
 
-def _annotation_for(name: str) -> dict[str, str]:
+def _annotation_for(name: str) -> dict[str, bool]:
     if name in _READ_TOOLS:
-        return {"readOnlyHint": "true"}
+        return {"readOnlyHint": True}
     if name in _DELETE_TOOLS:
-        return {"destructiveHint": "true"}
+        return {"destructiveHint": True}
     if name in _WRITE_TOOLS:
-        return {"idempotentHint": "true"}
+        return {"idempotentHint": True}
     return {}
 
 
@@ -189,6 +192,7 @@ async def call_write_tool(name: str, arguments: dict | None = None) -> str:
             raise HAError(f"{name!r} is a read-only tool. Use call_read_tool instead.")
         if name in _DELETE_TOOLS:
             raise HAError(f"{name!r} is a delete tool. Use call_delete_tool instead.")
+        raise HAError(f"{name!r} is not classified as a write tool.")
     result = await mcp._tool_manager.call_tool(name, arguments or {})
     return _dump(result)
 
@@ -208,6 +212,7 @@ async def call_delete_tool(name: str, arguments: dict | None = None) -> str:
             raise HAError(f"{name!r} is a read-only tool. Use call_read_tool instead.")
         if name in _WRITE_TOOLS:
             raise HAError(f"{name!r} is a write tool. Use call_write_tool instead.")
+        raise HAError(f"{name!r} is not classified as a delete tool.")
     result = await mcp._tool_manager.call_tool(name, arguments or {})
     return _dump(result)
 

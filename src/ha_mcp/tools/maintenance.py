@@ -6,6 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..app import _dump, client, mcp
+from ..ha_client import HAError
 
 
 # ------------------------------------------------------------- logging levels
@@ -94,3 +95,60 @@ async def diagnose_entity(entity_id: str) -> str:
             out["device_error"] = str(exc)
 
     return _dump(out)
+
+
+# --------------------------------------------------------- related & repairs
+@mcp.tool()
+async def search_related(item_type: str, item_id: str) -> str:
+    """Find everything related to an entity, device, area, config entry,
+    automation, scene, script or group — in one call.
+
+    Great for questions like "what depends on this device?" or "which
+    automations use this entity?".
+
+    Args:
+        item_type: One of entity, device, area, config_entry, automation,
+            scene, script, group.
+        item_id: The id of that item (e.g. "light.kitchen", a device id,
+            an area id, or an automation entity_id).
+    """
+    allowed = {"entity", "device", "area", "config_entry", "automation",
+               "scene", "script", "group"}
+    if item_type not in allowed:
+        raise HAError(f"item_type must be one of {sorted(allowed)}, got {item_type!r}")
+    return _dump(await client.ws_command({
+        "type": "search/related",
+        "item_type": item_type,
+        "item_id": item_id,
+    }))
+
+
+@mcp.tool()
+async def list_repair_issues() -> str:
+    """List active repair issues (Settings → Repairs): known problems that
+    Home Assistant has detected, with severity and whether they are fixable."""
+    result = await client.ws_command({"type": "repairs/list_issues"})
+    issues = result.get("issues", result) if isinstance(result, dict) else result
+    return _dump({"count": len(issues) if isinstance(issues, list) else None,
+                  "issues": issues})
+
+
+@mcp.tool()
+async def recorder_info() -> str:
+    """Get recorder (history database) status: whether recording is running,
+    migration status and current backlog."""
+    return _dump(await client.ws_command({"type": "recorder/info"}))
+
+
+@mcp.tool()
+async def get_config_entry_diagnostics(entry_id: str) -> str:
+    """Download the diagnostics dump for an integration (config entry) — the
+    same data as the UI's "Download diagnostics" button. Not every integration
+    supports this; an HTTP 404 means it doesn't."""
+    return _dump(await client.rest_get(f"/diagnostics/config_entry/{entry_id}"))
+
+
+@mcp.tool()
+async def clear_error_log() -> str:
+    """Clear all entries from the Home Assistant error log (system_log)."""
+    return _dump(await client.rest_post("/services/system_log/clear", {}))

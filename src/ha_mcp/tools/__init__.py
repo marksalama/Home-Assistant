@@ -7,6 +7,7 @@ from . import (  # noqa: F401
     camera,
     core,
     dashboards,
+    discovery,  # imported last so _classify_tools sees all registered tools
     files_tools,
     groups,
     hacs,
@@ -23,5 +24,5 @@ from . import (  # noqa: F401
     themes,
     todo,
     traces,
-    discovery,  # imported last so _classify_tools sees all registered tools
+    voice,
 )

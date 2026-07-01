@@ -32,8 +32,9 @@ def _slug(path: str) -> str:
 
 
 class SnapshotStore:
-    def __init__(self, base_dir: str) -> None:
+    def __init__(self, base_dir: str, keep: int = 30) -> None:
         self.base = Path(base_dir).expanduser()
+        self.keep = max(1, keep)
 
     def _dir_for(self, path: str) -> Path:
         return self.base / _slug(path)
@@ -47,8 +48,21 @@ class SnapshotStore:
         meta = {"path": path, "version": version,
                 "created": datetime.now(timezone.utc).isoformat()}
         (d / f"{version}.json").write_text(json.dumps(meta), encoding="utf-8")
+        self._prune(d)
         return SnapshotInfo(version=version, path=path,
                             size=len(content.encode("utf-8")), created=meta["created"])
+
+    def _prune(self, d: Path) -> None:
+        """Keep only the newest `keep` snapshots per file (bounded disk usage)."""
+        snaps = sorted(d.glob("*.snapshot"), reverse=True)
+        for old in snaps[self.keep:]:
+            meta = d / f"{old.stem}.json"
+            try:
+                old.unlink()
+                if meta.is_file():
+                    meta.unlink()
+            except OSError:
+                pass
 
     def list(self, path: str) -> list[SnapshotInfo]:
         d = self._dir_for(path)

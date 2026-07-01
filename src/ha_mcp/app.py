@@ -5,8 +5,10 @@ small helpers. Tool modules import from here and register themselves.
 from __future__ import annotations
 
 import asyncio
-from importlib.metadata import PackageNotFoundError, version
 import json
+import logging
+import sys
+from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
@@ -77,10 +79,22 @@ SAFETY:
 HA OS ONLY: add-on and backup tools (list_addons, control_addon, *_backup,
 host/supervisor tools) only work on HA OS / Supervised; they error otherwise.
 
-DEBUGGING: get_error_log returns structured system_log entries (name, message,
-level, source, timestamp, exception, count, first_occurred). Use it with
-get_core_logs/get_supervisor_logs/get_addon_logs, set_log_level(integration,
-"debug"), system_health, list_automation_traces + get_automation_trace.
+DEBUGGING: get_error_log(level=, search=, limit=) returns structured system_log
+entries (name, message, level, source, timestamp, exception, count,
+first_occurred). Use it with get_core_logs/get_supervisor_logs/get_addon_logs,
+set_log_level(integration, "debug"), system_health, list_automation_traces +
+get_automation_trace. Also: list_repair_issues (HA's own detected problems),
+search_related(item_type, item_id) to find everything connected to an
+entity/device/area, get_config_entry_diagnostics(entry_id) for an integration's
+diagnostics dump, and recorder_info for database health.
+
+DEVICES & AREAS: list_device_capabilities(device_id, kind) shows what a device
+can trigger on / condition on / do (for device-based automations).
+bulk_assign_area moves many entities/devices to an area in one call.
+
+VOICE & DATA: converse(text) sends a natural-language command to HA Assist.
+list_statistic_ids + get_statistics for long-term statistics (energy etc.).
+trigger_webhook(webhook_id) fires webhook automations.
 
 ENTITY EXPOSURE: get_entity_exposure / set_entity_exposure to control which
 entities are exposed to Assist (conversation), Alexa (cloud.alexa), or
@@ -88,6 +102,14 @@ Google Assistant (cloud.google_assistant).
 """
 
 settings = load_settings()
+
+# Log to stderr only: stdout carries the MCP stdio protocol.
+logging.basicConfig(
+    stream=sys.stderr,
+    level=getattr(logging, settings.log_level.upper(), logging.WARNING),
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
+
 client = HAClient(settings)
 mcp = FastMCP(
     "home-assistant",
@@ -97,7 +119,11 @@ mcp = FastMCP(
 )
 
 # Local snapshot store for reversible file edits (None if disabled).
-snapshots = SnapshotStore(settings.snapshot_dir) if settings.snapshots_enabled else None
+snapshots = (
+    SnapshotStore(settings.snapshot_dir, keep=settings.snapshot_keep)
+    if settings.snapshots_enabled
+    else None
+)
 
 # Helper storage-collection domains that share the same WS list/create/update/delete API.
 HELPER_DOMAINS = {
@@ -236,7 +262,7 @@ async def _collect_overview() -> dict[str, Any]:
         errors = await client.ws_command({"type": "system_log/list"})
         error_count = len(errors) if isinstance(errors, list) else 0
     except Exception:
-        pass
+        logging.getLogger(__name__).debug("system_log/list unavailable", exc_info=True)
 
     areas: list[dict[str, Any]] = []
     floors: list[dict[str, Any]] = []
@@ -265,7 +291,7 @@ async def _collect_overview() -> dict[str, Any]:
         "scene_count": scene_count,
         "pending_updates": update_pending,
         "update_entities": update_entities,
-        "errors_last_hour": error_count,
+        "error_log_entries": error_count,
         "integrations": len(entries),
         "integrations_failed": integration_failed,
         "areas": len(areas),

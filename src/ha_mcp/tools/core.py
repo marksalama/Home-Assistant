@@ -11,7 +11,8 @@ from ..ha_client import HAError
 
 @mcp.tool()
 async def list_entities(domain: str | None = None, search: str | None = None,
-                        fields: str | None = None) -> str:
+                        fields: str | None = None, state: str | None = None,
+                        limit: int = 0, offset: int = 0) -> str:
     """List entities with their current state.
 
     Args:
@@ -20,6 +21,10 @@ async def list_entities(domain: str | None = None, search: str | None = None,
             and friendly name.
         fields: Comma-separated field names to include per entity (e.g.
             "entity_id,state"). Saves tokens on large results.
+        state: Optional exact state filter, e.g. "on" or "unavailable".
+        limit: Maximum number of entities to return (0 = all). Use together
+            with offset to paginate very large installations.
+        offset: Skip this many matches before returning results.
     """
     field_set = _parse_fields(fields)
     states = await client.rest_get("/states")
@@ -31,11 +36,19 @@ async def list_entities(domain: str | None = None, search: str | None = None,
         name = s.get("attributes", {}).get("friendly_name", "")
         if search and search.lower() not in eid.lower() and search.lower() not in name.lower():
             continue
+        if state is not None and s["state"] != state:
+            continue
         entry = {"entity_id": eid, "state": s["state"], "friendly_name": name}
         if field_set:
             entry = {k: v for k, v in entry.items() if k in field_set}
         result.append(entry)
-    return _dump({"count": len(result), "entities": result})
+    total = len(result)
+    if offset > 0:
+        result = result[offset:]
+    if limit > 0:
+        result = result[:limit]
+    return _dump({"count": total, "returned": len(result), "offset": offset,
+                  "entities": result})
 
 
 @mcp.tool()
@@ -225,3 +238,15 @@ async def bulk_control(
         "succeeded": sum(1 for o in outcomes if o["ok"]),
         "results": outcomes,
     })
+
+
+# ---------------------------------------------------------------- webhooks
+@mcp.tool()
+async def trigger_webhook(webhook_id: str, data: dict | None = None) -> str:
+    """Trigger a webhook-based automation by POSTing to /api/webhook/<id>.
+
+    Args:
+        webhook_id: The webhook id configured in the automation trigger.
+        data: Optional JSON payload passed to the automation as trigger data.
+    """
+    return _dump(await client.rest_post(f"/webhook/{webhook_id}", data or {}))

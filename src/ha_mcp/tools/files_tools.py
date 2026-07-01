@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import asdict
 
+from .. import yaml_edit
 from ..app import _dump, _files, client, mcp, settings, snapshots
 from ..ha_client import HAError
 
@@ -145,86 +146,17 @@ async def set_yaml_key(
     backend = _files()
     content = await asyncio.to_thread(backend.read, path)
 
-    lines = content.splitlines(keepends=True)
-
-    # --- attempt: use ruamel.yaml for comment-preserving round-trip editing ---
-    have_yaml = False
-    try:
-        from ruamel.yaml import YAML  # type: ignore[import-not-found]
-        yaml_lib = YAML()
-        have_yaml = True
-    except ImportError:
-        yaml_lib = None
-
+    have_yaml = yaml_edit.have_ruamel()
     if have_yaml:
-        parsed = yaml_lib.load(content)
-        if parsed is None:
-            parsed = {}
-        if value is None:
-            parsed.pop(key, None)
-        else:
-            val_parsed = yaml_lib.load(value)
-            parsed[key] = val_parsed if val_parsed is not None else value
-        from io import StringIO
-        buf = StringIO()
-        yaml_lib.dump(parsed, buf)
-        new_content = buf.getvalue()
-        await _snapshot_existing(backend, path)
-        await asyncio.to_thread(backend.write, path, new_content)
+        new_content = yaml_edit.edit_with_ruamel(content, key, value)
     else:
-        # --- fallback: string-based top-level key replacement ---
-        import re
-        indent = ""
+        new_content, changed = yaml_edit.edit_with_text_fallback(content, key, value)
+        if not changed:
+            return _dump({"ok": True, "path": path, "key": key,
+                          "note": "key not found, nothing removed"})
 
-        if value is not None:
-            # split the value into indented lines (4 spaces per level)
-            value_lines = value.splitlines()
-            if len(value_lines) == 1 and not value_lines[0].strip().startswith("-"):
-                # simple scalar
-                new_block = f"{indent}{key}: {value.strip()}\n"
-            else:
-                new_block = f"{indent}{key}: {value_lines[0].strip()}\n"
-                for vl in value_lines[1:]:
-                    new_block += f"      {vl}\n" if vl.strip() else "\n"
-
-        # find key boundaries
-        key_pattern = re.compile(rf"^{re.escape(key)}\s*:")
-        start = None
-        end = len(lines)
-        for i, line in enumerate(lines):
-            if start is None:
-                if key_pattern.match(line):
-                    start = i
-            elif start is not None:
-                # next non-empty, non-indented line = new top-level key
-                stripped = line.rstrip("\n").rstrip("\r")
-                if stripped and not stripped[0].isspace() and not stripped.startswith("#"):
-                    end = i
-                    break
-
-        if value is not None:
-            # replace existing or append
-            if start is not None:
-                result = lines[:start] + [new_block] + lines[end:]
-            else:
-                # append before first empty line or at the end
-                insert_at = len(lines)
-                for i in range(len(lines) - 1, -1, -1):
-                    if lines[i].strip():
-                        insert_at = i + 1
-                        break
-                if insert_at < len(lines) and not lines[insert_at - 1].rstrip("\n").rstrip("\r"):
-                    insert_at -= 1
-                result = lines[:insert_at] + ["\n", new_block] + lines[insert_at:]
-        else:
-            # remove key
-            if start is None:
-                return _dump({"ok": True, "path": path, "key": key, "note": "key not found, nothing removed"})
-            result = lines[:start] + lines[end:]
-
-        new_content = "".join(result)
-        await _snapshot_existing(backend, path)
-        await asyncio.to_thread(backend.write, path, new_content)
+    await _snapshot_existing(backend, path)
+    await asyncio.to_thread(backend.write, path, new_content)
 
     outcome = {"ok": True, "path": path, "key": key, "action": "removed" if value is None else "set",
                "snapshot_saved": snapshots is not None,
@@ -235,7 +167,7 @@ async def set_yaml_key(
             "Install home-assistant-mcp[yaml] for safer YAML edits with comments."
         )
 
-    if validate and value is not None:
+    if validate:
         try:
             check_result = await client.rest_post("/config/core/check_config", {}, write=False)
             outcome["check_config"] = check_result
